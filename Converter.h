@@ -1,9 +1,10 @@
 #ifndef CONVERTER_H
 #define CONVERTER_H
 
-#include<Eigen/Dense>
+#include <Eigen/Dense>
 #include <Eigen/Core>
 #include <math.h>
+#include <Eigen/Geometry>
 
 namespace RAIN_IMU
 {
@@ -14,11 +15,14 @@ public:
 	Converter();
 	~Converter();
 
-	Eigen::Quaterniond Converter::quat2euler(const Eigen::Vector3d euler);
-	Eigen::Vector3d Converter::euler2quat(const Eigen::Quaterniond q);
-	void Converter::quatNormalize(const Eigen::Quaterniond &q);
-	Eigen::Quaterniond Converter::quatMultiquat(Eigen::Quaterniond q1, Eigen::Quaterniond q2);
-	Eigen::Quaterniond Converter::quatleftproduct(Eigen::Quaterniond q);
+	static Eigen::Quaterniond euler2quat(const Eigen::Vector3d &euler);
+	static Eigen::Vector3d quat2euler(const Eigen::Quaterniond &q);
+	static void quatNormalize(Eigen::Quaterniond &q);
+	static Eigen::Quaterniond quatMultiquat(const Eigen::Quaterniond &q1, const Eigen::Quaterniond &q2);
+	static Eigen::Matrix<double, 4, 4> quatleftproduct(const Eigen::Quaterniond &q0);
+	static Eigen::Matrix<double, 4, 4> quatRightproduct(const Eigen::Quaterniond &q0);
+	static Eigen::Matrix<double, 3, 3> quat2rotmatrix(const Eigen::Quaterniond &q0);
+	static Eigen::Matrix<double, 4, 4> OmegaMatrix(const SensorData &sensordata);
 };
 
 

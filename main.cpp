@@ -1,14 +1,14 @@
+#include "System.h"
 #include <iostream>
-#include <Eigen/Dense>
 
-using Eigen::MatrixXd;
+using namespace RAIN_IMU;
+using namespace std;
 
 int main(void)
 {
-	MatrixXd m(2, 2);
-	m(0, 0) = 3;
-	m(1, 0) = 2.5;
-	m(0, 1) = -1;
-	m(1, 1) = m(1, 0) + m(0, 1);
-	std::cout << m << std::endl;
+	System imusystem;
+	
+	cout << "main running " << endl;
+
+	imusystem.RunEKF();
 }
