@@ -5,6 +5,7 @@
 #include <Eigen/Core>
 #include <math.h>
 #include <Eigen/Geometry>
+#include "SensorData.h"
 
 namespace RAIN_IMU
 {
@@ -23,6 +24,10 @@ public:
 	static Eigen::Matrix<double, 4, 4> quatRightproduct(const Eigen::Quaterniond &q0);
 	static Eigen::Matrix<double, 3, 3> quat2rotmatrix(const Eigen::Quaterniond &q0);
 	static Eigen::Matrix<double, 4, 4> OmegaMatrix(const SensorData &sensordata);
+	static Eigen::Vector4d quat2vector4d(const Eigen::Quaterniond &q);
+	static Eigen::Vector3d Sensordate2zMatrix(const SensorData sensordata);
+	static Eigen::Quaterniond vector4d2quat(const Eigen::Vector4d &vq);
+	static Eigen::Quaterniond quatplusquat(const Eigen::Quaterniond &q1, const Eigen::Quaterniond &q2);
 };
 
 

@@ -135,7 +135,48 @@ Eigen::Matrix<double, 4, 4> Converter::OmegaMatrix(const SensorData &sensordata)
 	return OmegaMatrix;
 }
 
+Eigen::Vector4d Converter::quat2vector4d(const Eigen::Quaterniond &q)
+{
+	Eigen::Vector4d vq;
+	vq[0] = q.w();
+	vq[1] = q.x();
+	vq[2] = q.y();
+	vq[3] = q.z();
 
-
+	return vq;
 }
 
+Eigen::Vector3d Converter::Sensordate2zMatrix(const SensorData sensordata)
+{
+	Eigen::Vector3d z;
+
+	z << sensordata.Acc.X, sensordata.Acc.Y, sensordata.Acc.Z;
+
+	return z;
+}
+
+Eigen::Quaterniond Converter::vector4d2quat(const Eigen::Vector4d &vq)
+{
+	Eigen::Quaterniond q;
+
+	q.w() = vq[0];
+	q.x() = vq[1];
+	q.y() = vq[2];
+	q.z() = vq[3];
+
+	return q;
+}
+
+Eigen::Quaterniond Converter::quatplusquat(const Eigen::Quaterniond &q1, const Eigen::Quaterniond &q2)
+{
+	Eigen::Quaterniond q;
+
+	q.w() = q1.w() + q2.w();
+	q.x() = q1.x() + q2.x();
+	q.y() = q1.y() + q2.y();
+	q.z() = q1.z() + q2.z();
+
+	return q;
+}
+
+}

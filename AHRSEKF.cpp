@@ -1,6 +1,9 @@
 #include "AHRSEKF.h"
 #include <iostream>
 #include <fstream>
+#include <Eigen/core>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 namespace RAIN_IMU
 {
@@ -35,9 +38,9 @@ Eigen::Vector3d AHRSEKF::Initialize(const SensorData &sensordata)
 
 Eigen::Matrix<double, 4, 4> AHRSEKF::DiscreteTime(const Eigen::Matrix<double, 4, 4> &rotM, const double &T)
 {
-	Eigen::Matrix<double, 4, 4> r1 = 0.5 * T * rotM;
+	Eigen::Matrix<double, 4, 4> r1 = 0.5 * T * rotM; // 
 
-	return (Eigen::MatrixXd::Identity(3, 3) + r1);
+	return (Eigen::MatrixXd::Identity(4, 4) + r1);
 
 }
 
@@ -51,6 +54,35 @@ Eigen::Matrix<double, 4, 4> AHRSEKF::Gyro2RotationalMatrix(const SensorData &sen
 			sensordata.Acc.Z, sensordata.Acc.Y, -sensordata.Acc.X, 0;
 	
 	return rotM;
+}
+
+Eigen::Matrix<double, 3, 4> AHRSEKF::JacobianHk1Matrix(const Eigen::Quaterniond &q)
+{
+	Eigen::Matrix<double, 3, 4> Hk1;
+
+	Hk1 << -2*q.y(), 2*q.z(), -2*q.w(),2*q.x(),
+			2*q.x(), 2*q.w(), 2*q.z(), 2*q.y(),
+			2*q.w(), -2*q.x(), -2*q.y(), 2*q.z();
+
+	return Hk1;
+}
+
+void AHRSEKF::initalizePPrior(Eigen::Matrix<double, 4, 4> &PPrior0)
+{
+	PPrior0 << 0.1250, 0.0003, 0.0003, 0.0003,
+			   0.0003, 0.1250, 0.0003, 0.0003,
+			   0.0003, 0.0003, 0.1250, 0.0003,
+			   0.0003, 0.0003, 0.0003, 0.1250;
+}
+
+Eigen::Matrix<double, 3, 1> AHRSEKF::Calculateh1Matrix(const Eigen::Quaterniond &q)
+{
+	Eigen::Matrix<double, 3, 1> h1;
+	h1 << 2*q.x()*q.z() - 2*q.w()*q.y(),
+		  2*q.w()*q.x() + 2*q.y()*q.z(),
+		  q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z();
+
+	return h1;
 }
 
 /**
@@ -109,9 +141,11 @@ void AHRSEKF::ReadSensorData()
 	std::cout << "finish loading the dataset" << std::endl;
 }
 
-SensorData AHRSEKF::GetSensordatabyID(long unsigned int nId)
+SensorData AHRSEKF::GetSensordatabyID(const long unsigned int &nId)
 {
 	return vSensorData.at(nId);
 }
+
+
 
 }
