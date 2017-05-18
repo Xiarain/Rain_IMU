@@ -10,6 +10,7 @@ public:
 	System();
 	~System();
 	int RunEKF();
+	int RunEKF2();
 };
 
 }

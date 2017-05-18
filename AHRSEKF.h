@@ -27,7 +27,7 @@ public:
 	Eigen::Matrix<double, 4, 4> Gyro2RotationalMatrix(const SensorData &sensordata);
 	Eigen::Matrix<double, 3, 4> JacobianHk1Matrix(const Eigen::Quaterniond &q);
 	Eigen::Matrix<double, 3, 1> Calculateh1Matrix(const Eigen::Quaterniond &q);
-	void initalizePPrior(Eigen::Matrix<double, 4, 4> &PPrior0);
+	void initalizevarMatrix(Eigen::Matrix<double, 4, 4> &PPrior0);
 	SensorData GetSensordatabyID(const long unsigned int &nId);
 
 private:

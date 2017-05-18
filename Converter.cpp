@@ -68,6 +68,14 @@ void Converter::quatNormalize(Eigen::Quaterniond &q)
 	q.z() = q.z() / norm;
 }
 
+void Converter::Normalize(Eigen::Matrix<double, 1, 3> &data)
+{
+	double norm = sqrt(data[0]*data[0] + data[1]*data[1] + data[2]*data[2]);
+	data[0] /= norm;
+	data[1] /= norm;
+	data[2] /= norm;
+}
+
 Eigen::Quaterniond Converter::quatMultiquat(const Eigen::Quaterniond &q1,const Eigen::Quaterniond &q2)
 {
 	Eigen::Quaterniond q;
@@ -126,6 +134,11 @@ Eigen::Matrix<double, 4, 4> Converter::OmegaMatrix(const SensorData &sensordata)
 	Gyro_y = sensordata.Gyro.Y;
 	Gyro_z = sensordata.Gyro.Z;
 
+	double norm = sqrt(Gyro_x * Gyro_x + Gyro_y * Gyro_y + Gyro_z * Gyro_z);
+	Gyro_x /= norm;
+	Gyro_y /= norm;
+	Gyro_z /= norm;
+
 	Eigen::Matrix<double, 4, 4> OmegaMatrix;
 	OmegaMatrix << 0, -Gyro_x, -Gyro_y, -Gyro_z,
 				   Gyro_x, 0, Gyro_z, -Gyro_y,
@@ -151,6 +164,11 @@ Eigen::Vector3d Converter::Sensordate2zMatrix(const SensorData sensordata)
 	Eigen::Vector3d z;
 
 	z << sensordata.Acc.X, sensordata.Acc.Y, sensordata.Acc.Z;
+
+	double norm = sqrt(z[0] * z[0] + z[1] * z[1] + z[2] * z[2]);
+	z[0] /= norm;
+	z[1] /= norm;
+	z[2] /= norm;
 
 	return z;
 }
@@ -178,5 +196,7 @@ Eigen::Quaterniond Converter::quatplusquat(const Eigen::Quaterniond &q1, const E
 
 	return q;
 }
+
+
 
 }

@@ -306,3 +306,6 @@ myfile.txt
 *.filters
 *.vcxproj
 NAV_1.mat
+Rain_IMU.vcxproj
+Rain_IMU.vcxproj
+*.filters

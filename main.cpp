@@ -1,5 +1,6 @@
 #include "System.h"
 #include <iostream>
+#include "Eigen/core"
 
 using namespace RAIN_IMU;
 using namespace std;
@@ -10,5 +11,5 @@ int main(void)
 	
 	cout << "main running " << endl;
 
-	imusystem.RunEKF();
+	imusystem.RunEKF2();
 }

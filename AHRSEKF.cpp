@@ -67,12 +67,16 @@ Eigen::Matrix<double, 3, 4> AHRSEKF::JacobianHk1Matrix(const Eigen::Quaterniond 
 	return Hk1;
 }
 
-void AHRSEKF::initalizePPrior(Eigen::Matrix<double, 4, 4> &PPrior0)
+void AHRSEKF::initalizevarMatrix(Eigen::Matrix<double, 4, 4> &PPrior0)
 {
-	PPrior0 << 0.1250, 0.0003, 0.0003, 0.0003,
-			   0.0003, 0.1250, 0.0003, 0.0003,
-			   0.0003, 0.0003, 0.1250, 0.0003,
-			   0.0003, 0.0003, 0.0003, 0.1250;
+	//PPrior0 << 0.1250, 0.0003, 0.0003, 0.0003,
+	//		   0.0003, 0.1250, 0.0003, 0.0003,
+	//		   0.0003, 0.0003, 0.1250, 0.0003,
+	//		   0.0003, 0.0003, 0.0003, 0.1250;
+	PPrior0 << 1, 0, 0, 0,
+			   0, 1, 0, 0,
+			   0, 0, 1, 0,
+			   0, 0, 0, 1;
 }
 
 Eigen::Matrix<double, 3, 1> AHRSEKF::Calculateh1Matrix(const Eigen::Quaterniond &q)
