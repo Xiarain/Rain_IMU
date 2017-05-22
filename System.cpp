@@ -101,26 +101,86 @@ int System::RunEKF()
 int System::RunEKF2()
 {
 	AHRSEKF2 ekf;
+	const double T = 0.02;
+	unsigned int index = 0;
+	SensorData sensordatak;
 
 	ekf.ReadSensorData();
 
-	Eigen::Matrix<double, 1, 7> x;
-	Eigen::Matrix<double, 7, 7> Pk;
+	Eigen::Matrix<double, 1, 7> x = Eigen::MatrixXd::Zero(1, 7);
+	Eigen::Matrix<double, 1, 7> x_ = Eigen::MatrixXd::Zero(1, 7);
+	Eigen::Matrix<double, 1, 6> z;
+
+	Eigen::Matrix<double, 7, 7> Pk_ = Eigen::MatrixXd::Zero(7, 7);
+	Eigen::Matrix<double, 7, 7> Pk = Eigen::MatrixXd::Identity(7, 7);
+	Eigen::Matrix<double, 1, 6> hk;
+	Eigen::Matrix<double, 6, 7> Hk = Eigen::MatrixXd::Zero(6, 7);
+	Eigen::Matrix<double, 7, 6> Kk = Eigen::MatrixXd::Zero(7, 6);
 
 	Eigen::Matrix<double, 6, 6> R;
 	Eigen::Matrix<double, 7, 7> Q;
+	Eigen::Matrix<double, 7, 7> Ak;
+
+	Eigen::Vector3d euler;
+	Eigen::Quaterniond qfilter;
 
 	EulerAngle eulerinit;
-	eulerinit = ekf.InitializeEuler(ekf.GetSensordatabyID(0));
+	eulerinit = ekf.InitializeEuler(ekf.GetSensordatabyID(0,false));
 
 	Eigen::Quaterniond qinit = Converter::euler2quat(Eigen::Vector3d(eulerinit.Yaw,eulerinit.Pitch,eulerinit.Roll));
 
 	ekf.InitializeVarMatrix(R,Q);
 
+	x[0] = qinit.w(), x[1] = qinit.x(), x[2] = qinit.y(), x[3] = qinit.z();
 	while(1)
 	{
+		//  the sensordatak that have the normalized, if want to use the unnormalized data, set the false flag in the GetSensordata function  
+		sensordatak = ekf.GetSensordatabyID(index,true);
+		//std::cout << sensordatak.Acc.X << sensordatak.Mag.X << std::endl;
+
+		ekf.FillObserveState(z,sensordatak);
+		//std::cout << z << std::endl;
+
+		ekf.UpdateState(x,x_,ekf.GetSensordatabyID(index,false),T);
+		//std::cout << x << std::endl; // x is ok
+		//std::cout << x_ << std::endl;// x_ is ok
+
+		ekf.FillTransiteMatrix(Ak, ekf.GetSensordatabyID(index,false), x, T);
+		//std::cout << Ak << std::endl;
+
+		Pk_ = Ak * Pk * Ak.transpose() + Q;
+		//std::cout << Pk_ << std::endl;
+
+		ekf.FillObserveMatrix(x_,hk,Hk,sensordatak);
+		//std::cout << hk << std::endl;
+
+		Kk = Pk_ * Hk.transpose() * (Hk * Pk_ * Hk.transpose() + R).inverse();
+		//std::cout << Kk << std::endl;
+
+		qfilter = Converter::vector4d2quat(x.block<1,4>(0, 0));
+
+		std::cout.precision(10);
+		euler = Converter::quat2euler(qfilter);// yaw pitch roll
+		euler[0] = euler[0] * ekf.RAD_DEG  - 8.3;
+		euler[1] = euler[1] * ekf.RAD_DEG;
+		euler[2] = euler[2]*ekf.RAD_DEG;
+		std::cout << "euler:" << euler.transpose() << std::endl;
+		sensordatak.EulerGroundTruth.Yaw *= ekf.RAD_DEG;
+		sensordatak.EulerGroundTruth.Pitch *= ekf.RAD_DEG;
+		sensordatak.EulerGroundTruth.Roll *= ekf.RAD_DEG;
+		std::cout << "truth"  << sensordatak.EulerGroundTruth.Yaw << " " << sensordatak.EulerGroundTruth.Pitch << " "  << sensordatak.EulerGroundTruth.Roll << std::endl; 
+
+		x = (x_.transpose() + Kk * (z - hk).transpose()).transpose();
+
+		Converter::Normalize(x);
+		//std::cout << x << std::endl;
+
+		Pk = (Eigen::MatrixXd::Identity(7, 7) - Kk * Hk) * Pk_;
+		//std::cout << Pk << std::endl;
 		
-		return 0;
+		index++;
+		if (index == 40000)
+			return 0;
 	}
 
 	

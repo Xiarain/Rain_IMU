@@ -68,12 +68,13 @@ void Converter::quatNormalize(Eigen::Quaterniond &q)
 	q.z() = q.z() / norm;
 }
 
-void Converter::Normalize(Eigen::Matrix<double, 1, 3> &data)
+void Converter::Normalize(Eigen::Matrix<double, 1, 7> &data)
 {
-	double norm = sqrt(data[0]*data[0] + data[1]*data[1] + data[2]*data[2]);
+	double norm = sqrt(data[0]*data[0] + data[1]*data[1] + data[2]*data[2] + data[3]*data[3]);
 	data[0] /= norm;
 	data[1] /= norm;
 	data[2] /= norm;
+	data[3] /= norm;
 }
 
 Eigen::Quaterniond Converter::quatMultiquat(const Eigen::Quaterniond &q1,const Eigen::Quaterniond &q2)
