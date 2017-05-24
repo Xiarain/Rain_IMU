@@ -11,19 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AHRSEKF2.h" />
     <ClInclude Include="Converter.h" />
-    <ClInclude Include="AHRSEKF.h" />
-    <ClInclude Include="SensorData.h" />
-    <ClInclude Include="System.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AHRSEKF2.cpp" />
     <ClCompile Include="Converter.cpp" />
-    <ClCompile Include="AHRSEKF.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="SensorData.cpp" />
-    <ClCompile Include="System.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{7CDFF36F-04EA-4426-A189-91F49B1E0927}</ProjectGuid>
@@ -74,7 +66,6 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <StackReserveSize>100000000</StackReserveSize>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

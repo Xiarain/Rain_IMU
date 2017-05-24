@@ -67,6 +67,9 @@ int System::RunEKF()
 		Eigen::Matrix<double, 3, 3> temp2 = temp.inverse();
 		Eigen::Matrix<double, 4, 3> Kk1 = PPriork * Hk1.transpose() * temp2;
 
+		//std::cout << Kk1 << std::endl;
+		//Kk1 = Eigen::MatrixXd::Identity(4, 3);	
+
 		Eigen::Matrix<double, 3, 1> h1 = ekf.Calculateh1Matrix(qProri);
 		//std::cout << h1 << std::endl;
 
@@ -80,6 +83,8 @@ int System::RunEKF()
 		Converter::quatNormalize(qPost);
 
 		PPost = (Eigen::MatrixXd::Identity(4, 4) - Kk1 * Hk1) *  PPriork;
+
+		//std::cout << PPost << std::endl;
 
 		Eigen::Vector3d euler = Converter::quat2euler(qPost);
 
@@ -98,8 +103,7 @@ int System::RunEKF2()
 	AHRSEKF2 ekf;
 	const double T = 0.02;
 	unsigned int index = 0;
-	SensorData sensordatanormk;
-	SensorData sensordataunnormk;
+	SensorData sensordatak;
 
 	ekf.ReadSensorData();
 
@@ -131,20 +135,27 @@ int System::RunEKF2()
 	while(1)
 	{
 		//  the sensordatak that have the normalized, if want to use the unnormalized data, set the false flag in the GetSensordata function  
-		sensordatanormk = ekf.GetSensordatabyID(index,true);
-		sensordataunnormk = ekf.GetSensordatabyID(index,false);
+		sensordatak = ekf.GetSensordatabyID(index,true);
+		//std::cout << sensordatak.Acc.X << sensordatak.Mag.X << std::endl;
 
-		ekf.FillObserveState(z,sensordatanormk);
+		ekf.FillObserveState(z,sensordatak);
+		//std::cout << z << std::endl;
 
-		ekf.UpdateState(x,x_,sensordataunnormk,T);
+		ekf.UpdateState(x,x_,ekf.GetSensordatabyID(index,false),T);
+		//std::cout << x << std::endl; // x is ok
+		//std::cout << x_ << std::endl;// x_ is ok
 
-		ekf.FillTransiteMatrix(Ak, sensordataunnormk, x, T);
+		ekf.FillTransiteMatrix(Ak, ekf.GetSensordatabyID(index,false), x, T);
+		//std::cout << Ak << std::endl;
 
 		Pk_ = Ak * Pk * Ak.transpose() + Q;
+		//std::cout << Pk_ << std::endl;
 
-		ekf.FillObserveMatrix(x_,hk,Hk,sensordatanormk);
+		ekf.FillObserveMatrix(x_,hk,Hk,sensordatak);
+		//std::cout << hk << std::endl;
 
 		Kk = Pk_ * Hk.transpose() * (Hk * Pk_ * Hk.transpose() + R).inverse();
+		//std::cout << Kk << std::endl;
 
 		qfilter = Converter::vector4d2quat(x.block<1,4>(0, 0));
 
@@ -154,19 +165,21 @@ int System::RunEKF2()
 		euler[1] = euler[1] * ekf.RAD_DEG;
 		euler[2] = euler[2]*ekf.RAD_DEG;
 		std::cout << "euler:" << euler.transpose() << std::endl;
-		sensordatanormk.EulerGroundTruth.Yaw *= ekf.RAD_DEG;
-		sensordatanormk.EulerGroundTruth.Pitch *= ekf.RAD_DEG;
-		sensordatanormk.EulerGroundTruth.Roll *= ekf.RAD_DEG;
-		std::cout << "truth"  << sensordatanormk.EulerGroundTruth.Yaw << " " << sensordatanormk.EulerGroundTruth.Pitch << " "  << sensordatanormk.EulerGroundTruth.Roll << std::endl; 
+		sensordatak.EulerGroundTruth.Yaw *= ekf.RAD_DEG;
+		sensordatak.EulerGroundTruth.Pitch *= ekf.RAD_DEG;
+		sensordatak.EulerGroundTruth.Roll *= ekf.RAD_DEG;
+		std::cout << "truth"  << sensordatak.EulerGroundTruth.Yaw << " " << sensordatak.EulerGroundTruth.Pitch << " "  << sensordatak.EulerGroundTruth.Roll << std::endl; 
 
 		x = (x_.transpose() + Kk * (z - hk).transpose()).transpose();
 
 		Converter::Normalize(x);
+		//std::cout << x << std::endl;
 
 		Pk = (Eigen::MatrixXd::Identity(7, 7) - Kk * Hk) * Pk_;
-
+		//std::cout << Pk << std::endl;
+		
 		index++;
-		if (index == 1000)
+		if (index == 40000)
 			return 0;
 	}
 
