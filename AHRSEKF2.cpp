@@ -26,7 +26,7 @@ void AHRSEKF2::ReadSensorData()
 {
 	std::cout << "read the sensor raw data" << std::endl;
 
-	const unsigned long int ROW = 36, VOL = 40000;
+	const unsigned long int ROW = 36, VOL = 4000;
 	double d[VOL][ROW];
 	std::ifstream in("myfile.txt");
 	for (unsigned long int i = 0; i < VOL; i++)
@@ -196,6 +196,7 @@ void  AHRSEKF2::FillObserveMatrix(const Eigen::Matrix<double, 1, 7> &x_, Eigen::
 	Eigen::Quaterniond qh, qx,qmag,qxinv;
 
 	hk1 << -2*(x_[1]*x_[3] - x_[0]*x_[2]), -2*(x_[2]*x_[3] + x_[0]*x_[1]), -(x_[0]*x_[0] - x_[1]*x_[1] - x_[2]*x_[2] + x_[3]*x_[3]);
+	//hk1 << -2*(x_[1]*x_[3] - x_[0]*x_[2]), -2*(x_[2]*x_[3] + x_[0]*x_[1]), -(1 - 2*x_[1]*x_[1] - 2*x_[2]*x_[2]);
 
 	qx.w() = x_[0];
 	qx.x() = x_[1];
@@ -238,11 +239,20 @@ void  AHRSEKF2::FillObserveMatrix(const Eigen::Matrix<double, 1, 7> &x_, Eigen::
 							 -x_[1], -x_[0], -x_[3], -x_[2],
 							 -x_[0],  x_[1],  x_[2], -x_[3];
 
+	//Hk1.block<3, 4>(0, 0) <<  x_[2], -x_[3],  x_[0], -x_[1],
+	//						 -x_[1], -x_[0], -x_[3], -x_[2],
+	//						      0, 2*x_[0],  2*x_[2],    0;
+
 	Hk1 = 2 * Hk1;
 
 	Hk2.block<3, 4>(0, 0) << -2*b[3]*x_[2],				   2*b[3]*x_[3],			     -4*b[1]*x_[2] - 2*b[3]*x_[0], -4*b[1]*x_[3] + 2*b[3]*x_[1],
 							 -2*b[1]*x_[3] + 2*b[3]*x_[1], 2*b[1]*x_[2] + 2*b[3]*x_[0],  2*b[1]*x_[1] + 2*b[3]*x_[3], -2*b[1]*x_[0] + 2*b[3]*x_[2],
 							  2*b[1]*x_[2],				   2*b[1]*x_[3] - 4*b[3]*x_[1],   2*b[1]*x_[0] - 4*b[3]*x_[2],  2*b[1]*x_[1];
+	
+
+	//Hk2.block<3, 4>(0, 0) <<  2*b[1]*x_[0] - 2*b[3]*x_[2], 2*b[1]*x_[1] + 2*b[3]*x_[3],	-2*b[1]*x_[2] - 2*b[3]*x_[0], -2*b[1]*x_[3] + 2*b[3]*x_[1],
+	//						 -2*b[1]*x_[3] + 2*b[3]*x_[1], 2*b[1]*x_[2] + 2*b[3]*x_[0],  2*b[1]*x_[1] + 2*b[3]*x_[3], -2*b[1]*x_[0] + 2*b[3]*x_[2],
+	//						  2*b[1]*x_[2] + 2*b[3]*x_[0], 2*b[1]*x_[3] - 2*b[3]*x_[1],  2*b[1]*x_[0] - 2*b[3]*x_[2],  2*b[1]*x_[1] + 2*b[3]*x_[3];
 	Hk2 = 2 * Hk2;
 
 	Hk.block<3, 7>(0, 0) = Hk1;
