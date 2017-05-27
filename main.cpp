@@ -11,5 +11,5 @@ int main(void)
 	
 	cout << "main running " << endl;
 
-	imusystem.RunEKF2();
+	imusystem.RunESKF();
 }

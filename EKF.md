@@ -1,6 +1,6 @@
-四元数旋转矩阵：
+四元数旋转矩阵(从body坐标系到world坐标系)：
 $$
-R =
+R^{w}_{b} =
 \left[ \begin{matrix}
 q^{2}_{w} + q^{2}_{x} - q^{2}_{y} - q^{2}_{z} & 2(q_xq_y - q_wq_z) & 2(q_xq_z + q_wq_y)   \\
 2(q_xq_y + q_wq_z) & q^{2}_{w} - q^{2}_{x} + q^{2}_{y} - q^{2}_{z} & 2(q_yq_z - q_wq_x) \\
@@ -64,6 +64,9 @@ $$
 **step4:** \
 求状态转移方程的雅克比矩阵和计算协方差矩阵：
 $$
+F_{k-1} = \frac{\partial f}{\partial x}|_{\hat x_{k|k-1}|u_{k-1}}
+$$
+$$
   F_{k} = \left[ \begin{matrix} R^{T}\{(w_m - w_b) \} & -I\Delta t \\  
   0 & I \\ \end{matrix} \right]
 $$
@@ -82,10 +85,14 @@ A_k = (I + A_{TC}T)\\
 $$
 $$
 P_{k|k-1} = F_{k-1}\cdot P_{k-1|k-1} \cdot F^{T}_{k-1}+Q_{k-1} \\
-F_{k-1} = \frac{\partial f}{\partial x}|_{\hat x_{k|k-1}|u_{k-1}}
 $$
 **step5：** \
 测量方程：
+重力在世界坐标系下归一化可以得到重力参考值
+$$
+A_{ref} = \left[ \begin{matrix} 0 & 0 & |g| \end{matrix} \right]^T
+$$
+加速度计可以测量重力在机体坐标系下各轴的分量。
 $$
 a = R_{t}^{T}(a_t - g_t) + a_{bt} + a_n \\
 w_m = w_t + w_{bt} + w_n \\
@@ -95,12 +102,12 @@ $$
 a_t = R_t(a_m - a_bt - a_n) + g_t \\
 w_t = w_m - w_{bt} - w_n
 $$
-为了消除环境因素的干扰，需要进行坐标变换；地球的磁场强度可以认为是由水平和垂直两部分组成的。一个加速度计可以提供一个姿态的参考，而且可以用来补偿测量地球磁场强度中倾斜错误。将传感器数值从传感器参考系转换到地球参考系。
+为了消除环境因素的干扰，需要进行坐标变换；因为磁倾角的存在，地球的磁场强度可以认为是由水平和垂直两部分组成的。一个加速度计可以提供一个姿态的参考，而且可以用来补偿测量地球磁场强度中倾斜错误。将传感器数值从传感器参考系转换到地球参考系。
 $$ h_{mk} = q \otimes m_k \otimes q^{\ast} \\
    b_k = \left[ \begin{matrix} 0 & \sqrt[2]{h_{x}^{2} + h_{y}^{2}} & 0 & h_z  \end{matrix} \right] \\
 $$
 $$
-h_2() = \hat m=h_{mk} R^b_n  =
+h_2() = \hat m= (R^b_n)^T h_{mk}  =
 \left[ \begin{matrix}
 q^{2}_{w} + q^{2}_{x} - q^{2}_{y} - q^{2}_{z} & 2(q_xq_y - q_wq_z) & 2(q_xq_z + q_wq_y)   \\
 2(q_xq_y + q_wq_z) & q^{2}_{w} - q^{2}_{x} + q^{2}_{y} - q^{2}_{z} & 2(q_yq_z - q_wq_x) \\
@@ -124,7 +131,7 @@ H_{k2}=
 \end{matrix} \right]
 $$
 $$
-h_1() = \hat g=R^b_n \left[ \begin{matrix}  0 \\ 0 \\ |g|  \end{matrix} \right] = |g| \left[ \begin{matrix} 2q_{x}q_{z} -2q_{w}q_{y}\\ 2q_{w}q_{x} + 2q_{y}q_{z} \\ q_w^2 - q_x^2- q_y^2 + q_z^2   \end{matrix} \right]
+h_1() = \hat g=(R^b_n)^T \left[ \begin{matrix}  0 \\ 0 \\ |g|  \end{matrix} \right] = |g| \left[ \begin{matrix} 2q_{x}q_{z} -2q_{w}q_{y}\\ 2q_{w}q_{x} + 2q_{y}q_{z} \\ q_w^2 - q_x^2- q_y^2 + q_z^2   \end{matrix} \right]
 $$
 
 $$

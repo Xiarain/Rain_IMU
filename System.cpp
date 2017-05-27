@@ -3,6 +3,7 @@
 #include "System.h"
 #include "AHRSEKF.h"
 #include "AHRSEKF2.h"
+#include "AHRSESKF.h"
 #include "SensorData.h"
 #include "Converter.h"
 
@@ -173,5 +174,49 @@ int System::RunEKF2()
 	
 }
 
+int System::RunESKF()
+{
+	AHRSESKF eskf;
+	Eigen::Vector3d eulerinit;
+	Eigen::Quaterniond quatinit;
+	Eigen::Matrix<double, 6, 6> Q, R, PPrior,P;
+	Eigen::Matrix<double, 6, 6> F;
+
+	const double T = 0.02;
+
+	unsigned int index = 0;
+
+	eskf.ReadSensorData();
+	eskf.InitializeVarMatrix(Q, R, PPrior);
+	eulerinit = eskf.Initialize(eskf.GetSensordatabyID(0,false));
+	quatinit = Converter::euler2quat(eulerinit);
+
+	eskf.NominalStatesPrior.q = quatinit;
+
+	SensorData sensordata;
+	SensorData sensordatanorm;
+	while(1)
+	{
+		sensordata = eskf.GetSensordatabyID(index,false);
+		sensordatanorm = eskf.GetSensordatabyID(index,true);
+
+		eskf.PredictNominalState(sensordata, T);
+
+		F = eskf.CalcTransitionMatrix(sensordata, T);
+
+		Eigen::Matrix<double, 1, 6> det_x();
+		
+
+
+
+
+		index++;
+	
+		if(index == 1)
+			return 0;
+	}
+
+	return 0;
+}
 
 }

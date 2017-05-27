@@ -11,6 +11,7 @@ public:
 	~System();
 	int RunEKF();
 	int RunEKF2();
+	int RunESKF();
 };
 
 }

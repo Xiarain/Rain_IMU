@@ -29,6 +29,7 @@ public:
 	static Eigen::Vector3d Sensordate2zMatrix(const SensorData sensordata);
 	static Eigen::Quaterniond vector4d2quat(const Eigen::Vector4d &vq);
 	static Eigen::Quaterniond quatplusquat(const Eigen::Quaterniond &q1, const Eigen::Quaterniond &q2);
+	static Eigen::Matrix<double, 3, 3> CrossProductMatrix(const Eigen::Vector3d a);
 };
 
 

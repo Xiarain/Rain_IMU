@@ -198,6 +198,19 @@ Eigen::Quaterniond Converter::quatplusquat(const Eigen::Quaterniond &q1, const E
 	return q;
 }
 
+Eigen::Matrix<double, 3, 3> Converter::CrossProductMatrix(const Eigen::Vector3d a)
+{
+	Eigen::Matrix<double, 3, 3> across;
+
+	//  a[0] a[1] a[2]
+	//  ax   ay   az
+	across << 0, -a[2], a[1],
+			  a[2], 0, -a[0],
+			 -a[1], a[0], 0;
+	
+	return across;
+}
+
 
 
 }
