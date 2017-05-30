@@ -111,6 +111,11 @@ Eigen::Vector3d AHRSESKF::Initialize(const SensorData &sensordata)
 
 void AHRSESKF::InitializeVarMatrix(Eigen::Matrix<double, 6, 6> &Q, Eigen::Matrix<double, 6, 6> &R, Eigen::Matrix<double, 6, 6> &PPrior)
 {
+	// it is very important, the MatrixXd::Identity can not initialize the whole matrix.
+	PPrior = Eigen::MatrixXd::Zero(6, 6);
+	Q = Eigen::MatrixXd::Zero(6, 6);
+	R = Eigen::MatrixXd::Zero(6, 6);
+
 	const double wn_var = 1e-5;
 	const double wbn_var = 1e-9;
 	const double an_var = 1e-3;
@@ -119,7 +124,7 @@ void AHRSESKF::InitializeVarMatrix(Eigen::Matrix<double, 6, 6> &Q, Eigen::Matrix
 	const double wb_var = 1e-7;
 
 	Q.block<3, 3>(0, 0) = wn_var * Eigen::MatrixXd::Identity(3, 3);
-	Q.block<3, 3>(3, 3) = wn_var * Eigen::MatrixXd::Identity(3, 3);
+	Q.block<3, 3>(3, 3) = wbn_var * Eigen::MatrixXd::Identity(3, 3);
 
 	R.block<3, 3>(0, 0) = an_var * Eigen::MatrixXd::Identity(3, 3);
 	R.block<3, 3>(3, 3) = mn_var * Eigen::MatrixXd::Identity(3, 3);
@@ -132,7 +137,7 @@ void AHRSESKF::PredictNominalState(const SensorData sensordata, const double T)
 {
 	Eigen::Quaterniond qw;
 
-	qw.w() = 0; // this value need to deep consider? TODO
+	qw.w() = 1; // this value need to deep consider? TODO
 	qw.x() = T*(sensordata.Gyro.X - NominalStates.wb[0]);
 	qw.y() = T*(sensordata.Gyro.Y - NominalStates.wb[1]);
 	qw.z() = T*(sensordata.Gyro.Z - NominalStates.wb[2]);
@@ -165,19 +170,197 @@ Eigen::Matrix<double, 6, 6> AHRSESKF::CalcTransitionMatrix(const SensorData sens
 
 	Eigen::Matrix<double, 3, 3> omegaMatrix = Converter::CrossProductMatrix(u);
 
-	Eigen::Matrix<double, 3, 3> R = Eigen::MatrixXd::Identity(3, 3) + sin(theta)*omegaMatrix + (1 - cos(theta))*omegaMatrix*omegaMatrix;
+	Eigen::Matrix<double, 3, 3> R = Eigen::MatrixXd::Identity(3, 3) + sin(theta)*omegaMatrix + omegaMatrix.transpose()*omegaMatrix*(1 - cos(theta));
 
-	Fx.block<3, 3>(0, 0) = R;
+	// why need to get R matrix transpose??? TODO
+	Fx.block<3, 3>(0, 0) = R.transpose();
 	Fx.block<3, 3>(0, 3) = -T*Eigen::MatrixXd::Identity(3, 3);
 	Fx.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(3, 3);
 
 	return Fx;
 }
 
-void AHRSESKF::PredictErrorState(const SensorData sensordata, const double T)
+void AHRSESKF::PredictErrorState(const Eigen::Matrix<double, 6, 6> &Fx)
 {
-
+	Eigen::Matrix<double, 1, 6> det_x;
+	det_x.block<1,3>(0, 0) = ErrorStates.det_theta;
+	det_x.block<1,3>(0, 3) = ErrorStates.det_wb;
+	det_x = Fx * det_x.transpose();
+		
+	ErrorStates.det_theta = det_x.block<1, 3>(0, 0);
+	ErrorStates.det_wb = det_x.block<1, 3>(0, 3);
 }
+
+void AHRSESKF::EnforcePSD(Eigen::Matrix<double, 6, 6> &P)
+{
+	int i, j;
+
+	for (i = 0; i < P.rows(); i++)
+	{
+		for (j = 0; j < P.cols(); j++)
+		{
+			if (i == j)
+			{
+				P(i,j) = abs(P(i,j));
+			}
+			else 
+			{
+				double meanvalue = 0.5*(P(i,j) + P(j,i));
+				P(i,j) = meanvalue;
+				P(j,i) = meanvalue;
+			}
+		}
+	}
+}
+
+void AHRSESKF::CalcObservationMatrix(Eigen::Matrix<double, 6, 6> &Hk,Eigen::Matrix<double, 1, 6> &hk, const SensorData sensordata, const double T)
+{
+	Eigen::Quaterniond mk, hmk,q,qinv;
+	Eigen::Vector4d b;
+
+	// this assignment just for the code look more easy.
+	q = NominalStatesPrior.q;
+
+	mk.w() = 0;
+	mk.x() = sensordata.Mag.X;
+	mk.y() = sensordata.Mag.Y;
+	mk.z() = sensordata.Mag.Z;
+
+	qinv.w() =  q.w();
+	qinv.x() = -q.x();
+	qinv.y() = -q.y();
+	qinv.z() = -q.z();
+
+	//hmk = NominalStatesPrior.q * mk * qinv;
+	hmk = Converter::quatMultiquat(q,Converter::quatMultiquat(mk, qinv));
+
+	b[1] = sqrt(mk.x()*mk.x() + mk.y()*mk.y());
+	b[3] = mk.z();
+
+	// Hk
+	Eigen::Matrix<double, 3, 4> Hk1;
+	Eigen::Matrix<double, 3, 4> Hk2;
+	Eigen::Matrix<double, 6, 7> Hx;
+	Hk1 <<  2*q.y(), -2*q.z(),  2*q.w(), -2*q.x(),
+		   -2*q.x(), -2*q.w(), -2*q.z(), -2*q.y(),
+			0, 4*q.x(),  4*q.y(),    0;
+	
+	Hk2 << -2*b[3]*q.y(),				   2*b[3]*q.z(),			     -4*b[1]*q.y() - 2*b[3]*q.w(), -4*b[1]*q.z() + 2*b[3]*q.x(),
+		   -2*b[1]*q.z() + 2*b[3]*q.x(),   2*b[1]*q.y() + 2*b[3]*q.w(),   2*b[1]*q.x() + 2*b[3]*q.z(), -2*b[1]*q.w() + 2*b[3]*q.y(),
+			2*b[1]*q.y(),				   2*b[1]*q.z() - 4*b[3]*q.x(),   2*b[1]*q.w() - 4*b[3]*q.y(),  2*b[1]*q.x();
+
+	Hx = Eigen::MatrixXd::Zero(6, 7);
+
+	Hx.block<3, 4>(0, 0) = Hk1;
+	Hx.block<3, 4>(3, 0) = Hk2;
+
+	Eigen::Matrix<double, 4, 3> Qdettheta;
+	Eigen::Matrix<double, 7, 6> Xdetx = Eigen::MatrixXd::Zero(7, 6);
+
+	Qdettheta << -q.x(), -q.y(), -q.z(),
+				  q.w(), -q.z(),  q.y(),
+				  q.z(),  q.w(), -q.x(),
+				 -q.y(),  q.x(),  q.w();
+	
+	Qdettheta = 0.5 * Qdettheta;
+
+	Xdetx.block<4, 3>(0, 0) = Qdettheta;
+	Xdetx.block<3, 3>(4, 3) = Eigen::MatrixXd::Identity(3, 3);
+
+	Hk = Hx*Xdetx;
+
+	// hk
+	Eigen::Matrix<double, 1, 3> hk1, hk2;
+
+	
+	hk1 << 2*(q.x()*q.z() - q.w()*q.y()), 2*(q.y()*q.z() + q.w()*q.x()), (q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
+
+	hk2 <<    b[1]*(q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z()) + 2*b[3]*(q.x()*q.z() - q.w()*q.y()),
+			2*b[1]*(q.x()*q.y() - q.w()*q.z()) + 2*b[3]*(q.w()*q.x() + q.y()*q.z()),
+			2*b[1]*(q.w()*q.y() + q.x()*q.z()) + b[3]*(q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
+	
+	hk.block<1, 3>(0, 0) = -hk1;
+	hk.block<1, 3>(0, 3) = -hk2;
+}
+
+void AHRSESKF::ObserveValue(Eigen::Matrix<double, 1, 6> &z, const SensorData sensordatanorm)
+{
+	z[0] = sensordatanorm.Acc.X;
+	z[1] = sensordatanorm.Acc.Y;
+	z[2] = sensordatanorm.Acc.Z;
+
+	z[3] = sensordatanorm.Mag.X;
+	z[4] = sensordatanorm.Mag.Y;
+	z[5] = sensordatanorm.Mag.Z;
+}
+
+Eigen::Matrix<double, 1, 7> AHRSESKF::State2Vector(const State &state)
+{
+	Eigen::Matrix<double, 1, 7> vx;
+
+	vx[0] = state.q.w();
+	vx[1] = state.q.x();
+	vx[2] = state.q.y();
+	vx[3] = state.q.z();
+
+	vx[4]= state.wb[0];
+	vx[5]= state.wb[1];
+	vx[6]= state.wb[2];
+
+	return vx;
+}
+
+State AHRSESKF::Vector2State(const Eigen::Matrix<double, 1, 7> &x)
+{
+	State state;
+
+	state.q.w() = x[0];
+	state.q.x() = x[1];
+	state.q.y() = x[2];
+	state.q.z() = x[3];
+
+	state.wb[0] = x[4];
+	state.wb[1] = x[5];
+	state.wb[2] = x[6];
+	
+	return state;
+}
+
+Eigen::Quaterniond AHRSESKF::BuildUpdateQuat(ErrorState errorstate)
+{
+	Eigen::Vector3d deltaq;
+	Eigen::Vector4d vquat;
+	Eigen::Quaterniond quat;
+	double norm;
+
+	deltaq = 0.5 * errorstate.det_theta;
+
+	norm = deltaq.transpose()*deltaq; 
+
+	if (norm > 1)
+	{
+		vquat[0] = 1;
+		vquat[1] = deltaq[0];
+		vquat[2] = deltaq[1];
+		vquat[3] = deltaq[2];
+		vquat = vquat / (sqrt(1 + norm));
+	}
+	else
+	{
+		vquat[0] = sqrt(1 - norm);
+		vquat[1] = deltaq[0];
+		vquat[2] = deltaq[1];
+		vquat[3] = deltaq[2];
+	}
+
+	quat.w() = vquat[0];
+	quat.x() = vquat[1];
+	quat.y() = vquat[2];
+	quat.z() = vquat[3];
+
+	return quat;
+}
+
 
 
 

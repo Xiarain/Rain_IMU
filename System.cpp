@@ -179,40 +179,90 @@ int System::RunESKF()
 	AHRSESKF eskf;
 	Eigen::Vector3d eulerinit;
 	Eigen::Quaterniond quatinit;
-	Eigen::Matrix<double, 6, 6> Q, R, PPrior,P;
-	Eigen::Matrix<double, 6, 6> F;
+	Eigen::Matrix<double, 6, 6> Q, Qi, R;
+	Eigen::Matrix<double, 6, 6> PPrior,P;
+	Eigen::Matrix<double, 6, 6> Fx;
+	Eigen::Matrix<double, 6, 6> Fi = Eigen::MatrixXd::Identity(6, 6);
+	Eigen::Matrix<double, 6, 6> Hk;
+	Eigen::Matrix<double, 1, 6> hk, z;
+	Eigen::Matrix<double, 6, 6> K;
+	Eigen::Matrix<double, 1, 6> vdetx;
+	Eigen::Quaterniond detq;
+	ErrorState detx;
 
 	const double T = 0.02;
 
 	unsigned int index = 0;
 
 	eskf.ReadSensorData();
-	eskf.InitializeVarMatrix(Q, R, PPrior);
+	eskf.InitializeVarMatrix(Q, R, P); // covariance estimate 
 	eulerinit = eskf.Initialize(eskf.GetSensordatabyID(0,false));
 	quatinit = Converter::euler2quat(eulerinit);
 
-	eskf.NominalStatesPrior.q = quatinit;
+	eskf.NominalStates.q = quatinit;
 
 	SensorData sensordata;
 	SensorData sensordatanorm;
 	while(1)
 	{
+		// sensor data 
 		sensordata = eskf.GetSensordatabyID(index,false);
 		sensordatanorm = eskf.GetSensordatabyID(index,true);
 
-		eskf.PredictNominalState(sensordata, T);
+		// prior nominal state 
+		eskf.PredictNominalState(sensordata, T); // OK
 
-		F = eskf.CalcTransitionMatrix(sensordata, T);
+		Fx = eskf.CalcTransitionMatrix(sensordata, T); // OK
 
-		Eigen::Matrix<double, 1, 6> det_x();
-		
+		eskf.PredictErrorState(Fx);
 
+		// predict prior covariance estimate 
+		Qi = Q * T;
+		P = Fx * P * Fx.transpose() + Fi * Qi * Fi.transpose(); // OK
 
+		eskf.EnforcePSD(P);
+
+		// the sensor data have been normalizd, it is very important
+		eskf.CalcObservationMatrix(Hk,hk,sensordatanorm,T);
+
+		K = P*Hk.transpose() * (Hk*P*Hk.transpose() + R).inverse();
+
+		eskf.ObserveValue(z,sensordatanorm);
+
+		vdetx = K * (z - hk).transpose();
+		eskf.ErrorStates.det_theta = vdetx.block<1, 3>(0, 0);
+		eskf.ErrorStates.det_wb = vdetx.block<1, 3>(0, 3);
+
+		P = P - K*(Hk*P* Hk.transpose() + R)*K.transpose();
+
+		// integrate error state to the nominal state
+		detq = eskf.BuildUpdateQuat(eskf.ErrorStates);
+
+		eskf.NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(eskf.NominalStatesPrior.q)*Converter::quat2vector4d(detq));
+		Converter::quatNormalize(eskf.NominalStates.q);
+
+		eskf.NominalStates.wb = eskf.NominalStatesPrior.wb + eskf.ErrorStates.det_wb;
+
+		// reset the error state
+		eskf.ErrorStates.det_theta = Eigen::MatrixXd::Zero(3, 1);
+		eskf.ErrorStates.det_wb = Eigen::MatrixXd::Zero(3, 1);
+		P = Eigen::MatrixXd::Identity(6, 6)*P*Eigen::MatrixXd::Identity(6, 6).transpose();
+
+		// display 
+		Eigen::Vector3d euler = Converter::quat2euler(eskf.NominalStates.q);
+		euler[0] = euler[0] * eskf.RAD_DEG  - 8.3;
+		euler[1] = euler[1] * eskf.RAD_DEG;
+		euler[2] = euler[2] * eskf.RAD_DEG;
+		std::cout << "euler:" << euler.transpose() << std::endl;
+		sensordatanorm.EulerGroundTruth.Yaw *= eskf.RAD_DEG;
+		sensordatanorm.EulerGroundTruth.Pitch *= eskf.RAD_DEG;
+		sensordatanorm.EulerGroundTruth.Roll *= eskf.RAD_DEG;
+		std::cout << "truth"  << sensordatanorm.EulerGroundTruth.Yaw << " " << sensordatanorm.EulerGroundTruth.Pitch << " "  << sensordatanorm.EulerGroundTruth.Roll << std::endl; 
 
 
 		index++;
 	
-		if(index == 1)
+		if(index == 1000)
 			return 0;
 	}
 

@@ -195,6 +195,7 @@ void  AHRSEKF2::FillObserveMatrix(const Eigen::Matrix<double, 1, 7> &x_, Eigen::
 	Eigen::Matrix<double, 1, 4> b;
 	Eigen::Quaterniond qh, qx,qmag,qxinv;
 
+	// there is no difference below the two formulas
 	hk1 << -2*(x_[1]*x_[3] - x_[0]*x_[2]), -2*(x_[2]*x_[3] + x_[0]*x_[1]), -(x_[0]*x_[0] - x_[1]*x_[1] - x_[2]*x_[2] + x_[3]*x_[3]);
 	//hk1 << -2*(x_[1]*x_[3] - x_[0]*x_[2]), -2*(x_[2]*x_[3] + x_[0]*x_[1]), -(1 - 2*x_[1]*x_[1] - 2*x_[2]*x_[2]);
 
@@ -213,6 +214,7 @@ void  AHRSEKF2::FillObserveMatrix(const Eigen::Matrix<double, 1, 7> &x_, Eigen::
 	qxinv.y() = -qx.y();
 	qxinv.z() = -qx.z();
 
+	// it need to delete
 	qxinv.w() =  qx.w();
 	qxinv.x() = -qx.x();
 	qxinv.y() = -qx.y();
