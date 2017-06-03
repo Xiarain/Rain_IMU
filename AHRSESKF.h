@@ -38,11 +38,11 @@ public:
 	double Yaw, Roll, Pitch;
 	
 	void ReadSensorData();
-	SensorData GetSensordatabyID(const long unsigned int &nId, bool flagnorm);
+	SensorData GetSensordatabyID(const long unsigned int nId, bool flagnorm);
 	Eigen::Vector3d Initialize(const SensorData &sensordata);
 	void InitializeVarMatrix(Eigen::Matrix<double, 6, 6> &Q, Eigen::Matrix<double, 6, 6> &R, Eigen::Matrix<double, 6, 6> &PPrior);
 
-	void PredictNominalState(const SensorData sensordata, const double T);
+	void PredictNominalState(const SensorData sensordata, const SensorData sensordata2, const double T);
 	void PredictErrorState(const SensorData sensordata, const double T);
 
 	Eigen::Matrix<double, 6, 6> CalcTransitionMatrix(const SensorData sensordata, const double T);
@@ -57,7 +57,7 @@ public:
 
 	Eigen::Quaterniond BuildUpdateQuat(ErrorState errorstate);
 private:
-	static const unsigned long int DataLength = 1000;
+	static const unsigned long int DataLength = 1001;
 
 	// just for temporary storage
 	std::vector<SensorData> vSensorData;
