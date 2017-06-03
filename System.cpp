@@ -241,7 +241,7 @@ int System::RunESKF()
 		// integrate error state to the nominal state
 		detq = eskf.BuildUpdateQuat(eskf.ErrorStates);
 
-		eskf.NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(eskf.NominalStates.q)*Converter::quat2vector4d(detq));
+		eskf.NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(eskf.NominalStates.q) * Converter::quat2vector4d(detq));
 		Converter::quatNormalize(eskf.NominalStates.q);
 
 		eskf.NominalStates.wb = eskf.NominalStates.wb + eskf.ErrorStates.det_wb;
@@ -265,7 +265,7 @@ int System::RunESKF()
 
 		index++;
 	
-		if(index == 1000)
+		if(index == 39000)
 			return 0;
 	}
 
