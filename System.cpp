@@ -202,21 +202,18 @@ int System::RunESKF()
 	eskf.NominalStates.q = quatinit;
 
 	SensorData sensordata;
-	SensorData sensordata2;
 	SensorData sensordatanorm;
 	while(1)
 	{
 		// sensor data 
 		sensordata = eskf.GetSensordatabyID(index,false);
-		sensordata2 = eskf.GetSensordatabyID((index+1),false);
 		sensordatanorm = eskf.GetSensordatabyID(index,true);
 
 		// prior nominal state 
-		eskf.PredictNominalState(sensordata, sensordata2, T); // OK
+		eskf.PredictNominalState(sensordata, T); // OK
 
 		Fx = eskf.CalcTransitionMatrix(sensordata, T); // OK
 
-		// there is no difference whether running this function
 		eskf.PredictErrorState(Fx);
 
 		// predict prior covariance estimate 
@@ -236,15 +233,15 @@ int System::RunESKF()
 		eskf.ErrorStates.det_theta = vdetx.block<1, 3>(0, 0);
 		eskf.ErrorStates.det_wb = vdetx.block<1, 3>(0, 3);
 
-		P = P - K*(Hk*P*Hk.transpose() + R)*K.transpose();
+		P = P - K*(Hk*P* Hk.transpose() + R)*K.transpose();
 
 		// integrate error state to the nominal state
 		detq = eskf.BuildUpdateQuat(eskf.ErrorStates);
 
-		eskf.NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(eskf.NominalStates.q)*Converter::quat2vector4d(detq));
+		eskf.NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(eskf.NominalStatesPrior.q)*Converter::quat2vector4d(detq));
 		Converter::quatNormalize(eskf.NominalStates.q);
 
-		eskf.NominalStates.wb = eskf.NominalStates.wb + eskf.ErrorStates.det_wb;
+		eskf.NominalStates.wb = eskf.NominalStatesPrior.wb + eskf.ErrorStates.det_wb;
 
 		// reset the error state
 		eskf.ErrorStates.det_theta = Eigen::MatrixXd::Zero(3, 1);

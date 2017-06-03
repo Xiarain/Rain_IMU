@@ -21,8 +21,13 @@ struct sdEuler
 	double Yaw;
 };
 
-struct SensorData
+class SensorData
 {
+public:
+	SensorData();
+	~SensorData();
+	void ReadIMURawData();
+
 	long unsigned int nId;
 	sdXYZData Acc;
 	sdXYZData Gyro;

@@ -12,7 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AHRSEKF2.h" />
-    <ClInclude Include="AHRSESKF.h" />
     <ClInclude Include="Converter.h" />
     <ClInclude Include="AHRSEKF.h" />
     <ClInclude Include="SensorData.h" />
@@ -20,7 +19,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AHRSEKF2.cpp" />
-    <ClCompile Include="AHRSESKF.cpp" />
     <ClCompile Include="Converter.cpp" />
     <ClCompile Include="AHRSEKF.cpp" />
     <ClCompile Include="main.cpp" />
