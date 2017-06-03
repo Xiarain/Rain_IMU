@@ -234,8 +234,8 @@ void AHRSESKF::CalcObservationMatrix(Eigen::Matrix<double, 6, 6> &Hk,Eigen::Matr
 	//hmk = NominalStatesPrior.q * mk * qinv;
 	hmk = Converter::quatMultiquat(q,Converter::quatMultiquat(mk, qinv));
 
-	b[1] = sqrt(mk.x()*mk.x() + mk.y()*mk.y());
-	b[3] = mk.z();
+	b[1] = sqrt(hmk.x()*hmk.x() + hmk.y()*hmk.y());
+	b[3] = hmk.z();
 
 	// Hk
 	Eigen::Matrix<double, 3, 4> Hk1;
