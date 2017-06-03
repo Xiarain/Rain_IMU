@@ -57,7 +57,7 @@ public:
 
 	Eigen::Quaterniond BuildUpdateQuat(ErrorState errorstate);
 private:
-	static const unsigned long int DataLength = 1000;
+	static const unsigned long int DataLength = 10000;
 
 	// just for temporary storage
 	std::vector<SensorData> vSensorData;

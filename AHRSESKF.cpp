@@ -72,6 +72,8 @@ SensorData AHRSESKF::GetSensordatabyID(const long unsigned int &nId, bool flagno
 {
 	SensorData sensordata = vSensorData.at(nId);
 
+	sensordata.nId = nId;
+
 	if (flagnorm == true)
 	{
 		double norm = std::sqrt(sensordata.Acc.X*sensordata.Acc.X + sensordata.Acc.Y*sensordata.Acc.Y + sensordata.Acc.Z*sensordata.Acc.Z);
@@ -142,19 +144,19 @@ void AHRSESKF::PredictNominalState(const SensorData sensordata, const double T)
 	qw.y() = T*(sensordata.Gyro.Y - NominalStates.wb[1]);
 	qw.z() = T*(sensordata.Gyro.Z - NominalStates.wb[2]);
 
-	NominalStatesPrior.q = NominalStates.q * qw;
+	NominalStates.q = NominalStates.q * qw;
 
 	double norm;
 
-	norm = sqrt(NominalStatesPrior.q.w()*NominalStatesPrior.q.w() + NominalStatesPrior.q.x()*NominalStatesPrior.q.x() +
-				NominalStatesPrior.q.y()*NominalStatesPrior.q.y() + NominalStatesPrior.q.z()*NominalStatesPrior.q.z());
+	norm = sqrt(NominalStates.q.w()*NominalStates.q.w() + NominalStates.q.x()*NominalStates.q.x() +
+				NominalStates.q.y()*NominalStates.q.y() + NominalStates.q.z()*NominalStates.q.z());
 	
-	NominalStatesPrior.q.w() /= norm;
-	NominalStatesPrior.q.x() /= norm;
-	NominalStatesPrior.q.y() /= norm;
-	NominalStatesPrior.q.z() /= norm;
+	NominalStates.q.w() /= norm;
+	NominalStates.q.x() /= norm;
+	NominalStates.q.y() /= norm;
+	NominalStates.q.z() /= norm;
 
-	NominalStatesPrior.wb = NominalStates.wb;
+	NominalStates.wb = NominalStates.wb;
 }
 
 Eigen::Matrix<double, 6, 6> AHRSESKF::CalcTransitionMatrix(const SensorData sensordata, const double T)
@@ -219,7 +221,7 @@ void AHRSESKF::CalcObservationMatrix(Eigen::Matrix<double, 6, 6> &Hk,Eigen::Matr
 	Eigen::Vector4d b;
 
 	// this assignment just for the code look more easy.
-	q = NominalStatesPrior.q;
+	q = NominalStates.q;
 
 	mk.w() = 0;
 	mk.x() = sensordata.Mag.X;
@@ -231,7 +233,7 @@ void AHRSESKF::CalcObservationMatrix(Eigen::Matrix<double, 6, 6> &Hk,Eigen::Matr
 	qinv.y() = -q.y();
 	qinv.z() = -q.z();
 
-	//hmk = NominalStatesPrior.q * mk * qinv;
+	//hmk = NominalStates.q * mk * qinv;
 	hmk = Converter::quatMultiquat(q,Converter::quatMultiquat(mk, qinv));
 
 	b[1] = sqrt(hmk.x()*hmk.x() + hmk.y()*hmk.y());
@@ -279,8 +281,8 @@ void AHRSESKF::CalcObservationMatrix(Eigen::Matrix<double, 6, 6> &Hk,Eigen::Matr
 			2*b[1]*(q.x()*q.y() - q.w()*q.z()) + 2*b[3]*(q.w()*q.x() + q.y()*q.z()),
 			2*b[1]*(q.w()*q.y() + q.x()*q.z()) + b[3]*(q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
 	
-	hk.block<1, 3>(0, 0) = -hk1;
-	hk.block<1, 3>(0, 3) = -hk2;
+	hk.block<1, 3>(0, 0) = hk1;
+	hk.block<1, 3>(0, 3) = hk2;
 }
 
 void AHRSESKF::ObserveValue(Eigen::Matrix<double, 1, 6> &z, const SensorData sensordatanorm)

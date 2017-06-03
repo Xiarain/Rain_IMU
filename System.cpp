@@ -35,11 +35,10 @@ int System::RunEKF()
 
 	Eigen::Quaterniond qProri;
 	Eigen::Quaterniond qPost = quatinit;
-	Eigen::Matrix<double, 4, 4> PPriork;
-	Eigen::Matrix<double, 4, 4> PPost;
+	Eigen::Matrix<double, 4, 4> P;
 
-	// initialize the P prior matrix, the initialization value is not very clear
-	ekf.initalizevarMatrix(PPost);
+	// initialize the P matrix, the initialization value is not very clear
+	ekf.initalizevarMatrix(P);
  
 	while(1)
 	{
@@ -54,7 +53,7 @@ int System::RunEKF()
 
 		Eigen::Matrix<double, 4, 4> Qk = (double)1e-6 *  Eigen::MatrixXd::Identity(4, 4);
 
-		PPriork = Ak * PPost * Ak.transpose() + Qk;
+		P = Ak * P * Ak.transpose() + Qk;
 
 		Eigen::Matrix<double, 3, 4> Hk1 = ekf.JacobianHk1Matrix(qProri); // get from the quaternion
 
@@ -63,10 +62,10 @@ int System::RunEKF()
 		Eigen::Matrix<double, 3, 3> Vk = Eigen::MatrixXd::Identity(3, 3);
 		Eigen::Matrix<double, 3, 3> R1 = 0.1 * Eigen::MatrixXd::Identity(3, 3);
 
-//		Eigen::Matrix<double, 4, 3> Kk1 = PPriork * Hk1.transpose() * (Hk1 * PPriork * Hk1.transpose() + Vk * R1 * Vk.transpose()).inverse();
-		Eigen::Matrix<double, 3, 3> temp = Hk1 * PPriork * Hk1.transpose() + Vk * R1 * Vk.transpose();
+//		Eigen::Matrix<double, 4, 3> Kk1 = P * Hk1.transpose() * (Hk1 * P * Hk1.transpose() + Vk * R1 * Vk.transpose()).inverse();
+		Eigen::Matrix<double, 3, 3> temp = Hk1 * P * Hk1.transpose() + Vk * R1 * Vk.transpose();
 		Eigen::Matrix<double, 3, 3> temp2 = temp.inverse();
-		Eigen::Matrix<double, 4, 3> Kk1 = PPriork * Hk1.transpose() * temp2;
+		Eigen::Matrix<double, 4, 3> Kk1 = P * Hk1.transpose() * temp2;
 
 		Eigen::Matrix<double, 3, 1> h1 = ekf.Calculateh1Matrix(qProri);
 		//std::cout << h1 << std::endl;
@@ -80,7 +79,7 @@ int System::RunEKF()
 
 		Converter::quatNormalize(qPost);
 
-		PPost = (Eigen::MatrixXd::Identity(4, 4) - Kk1 * Hk1) *  PPriork;
+		P = (Eigen::MatrixXd::Identity(4, 4) - Kk1 * Hk1) *  P;
 
 		Eigen::Vector3d euler = Converter::quat2euler(qPost);
 
@@ -229,7 +228,7 @@ int System::RunESKF()
 
 		eskf.ObserveValue(z,sensordatanorm);
 
-		vdetx = K * (z - hk).transpose();
+		vdetx = K * (z + hk).transpose();
 		eskf.ErrorStates.det_theta = vdetx.block<1, 3>(0, 0);
 		eskf.ErrorStates.det_wb = vdetx.block<1, 3>(0, 3);
 
@@ -238,10 +237,10 @@ int System::RunESKF()
 		// integrate error state to the nominal state
 		detq = eskf.BuildUpdateQuat(eskf.ErrorStates);
 
-		eskf.NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(eskf.NominalStatesPrior.q)*Converter::quat2vector4d(detq));
+		eskf.NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(eskf.NominalStates.q)*Converter::quat2vector4d(detq));
 		Converter::quatNormalize(eskf.NominalStates.q);
 
-		eskf.NominalStates.wb = eskf.NominalStatesPrior.wb + eskf.ErrorStates.det_wb;
+		eskf.NominalStates.wb = eskf.NominalStates.wb + eskf.ErrorStates.det_wb;
 
 		// reset the error state
 		eskf.ErrorStates.det_theta = Eigen::MatrixXd::Zero(3, 1);
@@ -262,7 +261,7 @@ int System::RunESKF()
 
 		index++;
 	
-		if(index == 1000)
+		if(index == 10000)
 			return 0;
 	}
 
