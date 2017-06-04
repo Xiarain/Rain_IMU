@@ -29,6 +29,7 @@ struct SensorData
 	sdXYZData Mag;
 
 	sdEuler EulerGroundTruth;
+	sdEuler CalculateEuler;
 };
 
 }

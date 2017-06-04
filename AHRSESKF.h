@@ -27,6 +27,10 @@ public:
 	AHRSESKF();
 	~AHRSESKF();
 
+	// just for temporary storage
+	std::vector<SensorData> vSensorData;
+	static const unsigned long int DataLength = 41000;
+
 	State NominalStatesPrior;
 	State NominalStates;
 	ErrorState ErrorStates;
@@ -57,10 +61,7 @@ public:
 
 	Eigen::Quaterniond BuildUpdateQuat(ErrorState errorstate);
 private:
-	static const unsigned long int DataLength = 40000;
-
-	// just for temporary storage
-	std::vector<SensorData> vSensorData;
+	
 	std::vector<Eigen::Matrix<double, 1, 3>> EulerAngle; // Yaw Pitch Roll 	
 
 };

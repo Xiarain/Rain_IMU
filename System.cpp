@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include "System.h"
 #include "AHRSEKF.h"
@@ -256,18 +257,64 @@ int System::RunESKF()
 		euler[0] = euler[0] * eskf.RAD_DEG  - 8.3;
 		euler[1] = euler[1] * eskf.RAD_DEG;
 		euler[2] = euler[2] * eskf.RAD_DEG;
-		std::cout << "euler:" << euler.transpose() << std::endl;
+		//std::cout << "euler:" << euler.transpose() << std::endl;
 		sensordatanorm.EulerGroundTruth.Yaw *= eskf.RAD_DEG;
 		sensordatanorm.EulerGroundTruth.Pitch *= eskf.RAD_DEG;
 		sensordatanorm.EulerGroundTruth.Roll *= eskf.RAD_DEG;
-		std::cout << "truth"  << sensordatanorm.EulerGroundTruth.Yaw << " " << sensordatanorm.EulerGroundTruth.Pitch << " "  << sensordatanorm.EulerGroundTruth.Roll << std::endl; 
-
+		//std::cout << "truth"  << sensordatanorm.EulerGroundTruth.Yaw << " " << sensordatanorm.EulerGroundTruth.Pitch << " "  << sensordatanorm.EulerGroundTruth.Roll << std::endl; 
+		eskf.vSensorData.at(index).CalculateEuler.Yaw = euler[0];
+		eskf.vSensorData.at(index).CalculateEuler.Pitch = euler[1];
+		eskf.vSensorData.at(index).CalculateEuler.Roll = euler[2];
+		eskf.vSensorData.at(index).EulerGroundTruth.Yaw = sensordatanorm.EulerGroundTruth.Yaw;
+		eskf.vSensorData.at(index).EulerGroundTruth.Pitch = sensordatanorm.EulerGroundTruth.Pitch;
+		eskf.vSensorData.at(index).EulerGroundTruth.Roll = sensordatanorm.EulerGroundTruth.Roll;
 
 		index++;
 	
-		if(index == 39000)
+		if(index == 40000)
+		{
+			SaveData(eskf.vSensorData);
+			std::cout << "sava data successfully" << std::endl;
 			return 0;
+		}
+			
 	}
+
+	return 0;
+}
+
+int System::SaveData(std::vector<SensorData> vSensorData)
+{
+	std::ofstream outfile;
+	long unsigned int index = 0;;
+	outfile.open("log.txt");
+	if (!outfile)
+	{
+		std::cout << "sava data fail" << std::endl;
+		return 0;
+	}
+
+	while(index < (40000-1))
+	{	
+		index++;
+		outfile << index;
+		outfile << " ";
+		outfile << vSensorData.at(index).CalculateEuler.Yaw;
+		outfile << " ";
+		outfile << vSensorData.at(index).CalculateEuler.Pitch;
+		outfile << " ";
+		outfile << vSensorData.at(index).CalculateEuler.Roll;
+		outfile << " ";
+		outfile << vSensorData.at(index).EulerGroundTruth.Yaw;
+		outfile << " ";
+		outfile << vSensorData.at(index).EulerGroundTruth.Pitch;
+		outfile << " ";
+		outfile << vSensorData.at(index).EulerGroundTruth.Roll;
+		outfile << std::endl;
+
+	}
+
+	outfile.close();
 
 	return 0;
 }
