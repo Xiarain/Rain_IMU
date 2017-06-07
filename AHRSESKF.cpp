@@ -31,7 +31,7 @@ void AHRSESKF::ReadSensorData()
 
 	const unsigned long int ROW = 36, VOL = DataLength;
 	double d[VOL][ROW];
-	std::ifstream in("myfile.txt");
+	std::ifstream in("RawData.txt");
 	for (unsigned long int i = 0; i < VOL; i++)
 	{
 		for (int j = 0; j < ROW; j++)
@@ -135,24 +135,50 @@ void AHRSESKF::InitializeVarMatrix(Eigen::Matrix<double, 6, 6> &Q, Eigen::Matrix
 
 void AHRSESKF::PredictNominalState(const SensorData sensordata, const SensorData sensordata2, const double T)
 {
-	Eigen::Quaterniond qw;
+	// there are three methods that can calculate the nominal state, but no differece in those three methods.
+
+	// quaternion left product
+	/*Eigen::Quaterniond qw;
 
 	qw.w() = 1; // this value need to deep consider? TODO
 	qw.x() = 0.5*T*((sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0]);
 	qw.y() = 0.5*T*((sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1]);
 	qw.z() = 0.5*T*((sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2]);
-
-	NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(NominalStates.q) * Converter::quat2vector4d(qw));
-
-	double norm;
-
-	norm = sqrt(NominalStates.q.w()*NominalStates.q.w() + NominalStates.q.x()*NominalStates.q.x() +
-				NominalStates.q.y()*NominalStates.q.y() + NominalStates.q.z()*NominalStates.q.z());
 	
-	NominalStates.q.w() /= norm;
-	NominalStates.q.x() /= norm;
-	NominalStates.q.y() /= norm;
-	NominalStates.q.z() /= norm;
+	NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(NominalStates.q) * Converter::quat2vector4d(qw));*/
+
+	// capital omega matrix method
+	/*Eigen::Vector3d vqw;
+
+	vqw[0] = (sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0];
+	vqw[1] = (sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1];
+	vqw[2] = (sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2];
+
+	vqw = T*vqw;
+
+	Eigen::Matrix<double, 4, 4> BigOmegaMatrix = Converter::BigOmegaMatrix(vqw);
+
+	NominalStates.q = Converter::vector4d2quat(0.5*BigOmegaMatrix*Converter::quat2vector4d(NominalStates.q) + Converter::quat2vector4d(NominalStates.q));*/
+
+	// close solution method
+	Eigen::Vector3d omega;
+	omega[0] = (sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0];
+	omega[1] = (sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1];
+	omega[2] = (sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2];
+
+	double absomega = 0;
+	Eigen::Matrix<double, 4, 4> Captheta;
+	Eigen::Matrix<double, 4, 4> Capomega;
+
+	absomega = sqrt(omega.transpose()*omega);
+	Capomega = Converter::BigOmegaMatrix(omega);
+
+	Captheta = cos(0.5*T*absomega) * Eigen::MatrixXd::Identity(4, 4) + (1/absomega)*sin(0.5*T*absomega)*Capomega;
+
+	NominalStates.q = Converter::vector4d2quat(Captheta * Converter::quat2vector4d(NominalStates.q));
+
+
+	Converter::quatNormalize(NominalStates.q);
 
 	NominalStates.wb = NominalStates.wb;
 }
@@ -177,6 +203,7 @@ Eigen::Matrix<double, 6, 6> AHRSESKF::CalcTransitionMatrix(const SensorData sens
 	Fx.block<3, 3>(0, 3) = -T*Eigen::MatrixXd::Identity(3, 3);
 	Fx.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(3, 3);
 	Fx.block<3, 3>(3, 0) = Eigen::MatrixXd::Zero(3, 3);
+
 	return Fx;
 }
 

@@ -29,7 +29,7 @@ public:
 
 	// just for temporary storage
 	std::vector<SensorData> vSensorData;
-	static const unsigned long int DataLength = 41000;
+	static const unsigned long int DataLength = 42000;
 
 	State NominalStatesPrior;
 	State NominalStates;

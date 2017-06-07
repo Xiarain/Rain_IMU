@@ -24,7 +24,8 @@ public:
 	static Eigen::Matrix<double, 4, 4> quatleftproduct(const Eigen::Quaterniond &q0);
 	static Eigen::Matrix<double, 4, 4> quatRightproduct(const Eigen::Quaterniond &q0);
 	static Eigen::Matrix<double, 3, 3> quat2rotmatrix(const Eigen::Quaterniond &q0);
-	static Eigen::Matrix<double, 4, 4> OmegaMatrix(const SensorData &sensordata);
+	static Eigen::Matrix<double, 4, 4> Converter::OmegaMatrix(const SensorData &sensordata);
+	static Eigen::Matrix<double, 4, 4> BigOmegaMatrix(const Eigen::Vector3d omega);
 	static Eigen::Vector4d quat2vector4d(const Eigen::Quaterniond &q);
 	static Eigen::Vector3d Sensordate2zMatrix(const SensorData sensordata);
 	static Eigen::Quaterniond vector4d2quat(const Eigen::Vector4d &vq);

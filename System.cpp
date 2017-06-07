@@ -193,7 +193,7 @@ int System::RunESKF()
 
 	const double T = 0.02;
 
-	unsigned int index = 0;
+	unsigned int index = 1;
 
 	eskf.ReadSensorData();
 	eskf.InitializeVarMatrix(Q, R, P); // covariance estimate 
@@ -201,6 +201,10 @@ int System::RunESKF()
 	quatinit = Converter::euler2quat(eulerinit);
 
 	eskf.NominalStates.q = quatinit;
+
+	eskf.vSensorData.at(0).CalculateEuler.Yaw = eulerinit[0] * eskf.RAD_DEG;
+	eskf.vSensorData.at(0).CalculateEuler.Pitch = eulerinit[1] * eskf.RAD_DEG;
+	eskf.vSensorData.at(0).CalculateEuler.Roll = eulerinit[2] * eskf.RAD_DEG;
 
 	SensorData sensordata;
 	SensorData sensordata2;
@@ -271,8 +275,9 @@ int System::RunESKF()
 
 		index++;
 	
-		if(index == 40000)
+		if(index == (4200 - 1))
 		{
+			std::cout << "finish the calculation" << std::endl;
 			SaveData(eskf.vSensorData);
 			std::cout << "sava data successfully" << std::endl;
 			return 0;
@@ -294,9 +299,8 @@ int System::SaveData(std::vector<SensorData> vSensorData)
 		return 0;
 	}
 
-	while(index < (40000-1))
-	{	
-		index++;
+	while(index < (4200-2))
+	{
 		outfile << index;
 		outfile << " ";
 		outfile << vSensorData.at(index).CalculateEuler.Yaw;
@@ -311,6 +315,8 @@ int System::SaveData(std::vector<SensorData> vSensorData)
 		outfile << " ";
 		outfile << vSensorData.at(index).EulerGroundTruth.Roll;
 		outfile << std::endl;
+
+		index++;
 
 	}
 

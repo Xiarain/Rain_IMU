@@ -149,6 +149,18 @@ Eigen::Matrix<double, 4, 4> Converter::OmegaMatrix(const SensorData &sensordata)
 	return OmegaMatrix;
 }
 
+// the gyro data don't need to normalize
+Eigen::Matrix<double, 4, 4> Converter::BigOmegaMatrix(const Eigen::Vector3d omega)
+{
+	Eigen::Matrix<double, 4, 4> BigOmegaMatrix;
+
+	BigOmegaMatrix.row(0) = -Eigen::Vector4d(0,omega[0],omega[1],omega[2]);
+	BigOmegaMatrix.col(0) = Eigen::Vector4d(0,omega[0],omega[1],omega[2]);
+	BigOmegaMatrix.block<3, 3>(1, 1) = -CrossProductMatrix(omega);
+
+	return BigOmegaMatrix;
+}
+
 Eigen::Vector4d Converter::quat2vector4d(const Eigen::Quaterniond &q)
 {
 	Eigen::Vector4d vq;
@@ -202,8 +214,6 @@ Eigen::Matrix<double, 3, 3> Converter::CrossProductMatrix(const Eigen::Vector3d 
 {
 	Eigen::Matrix<double, 3, 3> across;
 
-	//  a[0] a[1] a[2]
-	//  ax   ay   az
 	across << 0, -a[2], a[1],
 			  a[2], 0, -a[0],
 			 -a[1], a[0], 0;
