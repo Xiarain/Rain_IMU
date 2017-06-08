@@ -237,7 +237,7 @@ int System::RunESKF()
 
 		eskf.ObserveValue(z,sensordatanorm);
 
-		vdetx = K * (z - hk).transpose();
+		vdetx = K * (z + hk).transpose();
 		eskf.ErrorStates.det_theta = vdetx.block<1, 3>(0, 0);
 		eskf.ErrorStates.det_wb = vdetx.block<1, 3>(0, 3);
 

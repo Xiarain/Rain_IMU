@@ -137,17 +137,17 @@ void AHRSESKF::PredictNominalState(const SensorData sensordata, const SensorData
 {
 	// there are three methods that can calculate the nominal state, but no differece in those three methods.
 
-	// quaternion left product
-	/*Eigen::Quaterniond qw;
+	//====================================== quaternion left product
+	//Eigen::Quaterniond qw;
 
-	qw.w() = 1; // this value need to deep consider? TODO
-	qw.x() = 0.5*T*((sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0]);
-	qw.y() = 0.5*T*((sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1]);
-	qw.z() = 0.5*T*((sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2]);
+	//qw.w() = 1; // this value need to deep consider? TODO
+	//qw.x() = 0.5*T*((sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0]);
+	//qw.y() = 0.5*T*((sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1]);
+	//qw.z() = 0.5*T*((sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2]);
 	
-	NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(NominalStates.q) * Converter::quat2vector4d(qw));*/
+	//NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(NominalStates.q) * Converter::quat2vector4d(qw));
 
-	// capital omega matrix method
+	//====================================== capital omega matrix method
 	/*Eigen::Vector3d vqw;
 
 	vqw[0] = (sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0];
@@ -160,7 +160,20 @@ void AHRSESKF::PredictNominalState(const SensorData sensordata, const SensorData
 
 	NominalStates.q = Converter::vector4d2quat(0.5*BigOmegaMatrix*Converter::quat2vector4d(NominalStates.q) + Converter::quat2vector4d(NominalStates.q));*/
 
-	// close solution method
+	//===================================== captial ksai matrix method
+	//Eigen::Vector3d vqw;
+
+	//vqw[0] = (sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0];
+	//vqw[1] = (sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1];
+	//vqw[2] = (sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2];
+
+	//vqw = T*vqw;
+
+	//Eigen::Matrix<double, 4, 3> CapKsaiMatrix = Converter::CapKsaiMatrix(NominalStates.q);
+
+	//NominalStates.q = Converter::vector4d2quat(0.5*CapKsaiMatrix*vqw + Converter::quat2vector4d(NominalStates.q));
+
+	//===================================== close solution method
 	Eigen::Vector3d omega;
 	omega[0] = (sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0];
 	omega[1] = (sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1];
@@ -198,7 +211,6 @@ Eigen::Matrix<double, 6, 6> AHRSESKF::CalcTransitionMatrix(const SensorData sens
 
 	Eigen::Matrix<double, 3, 3> R = Eigen::MatrixXd::Identity(3, 3) + sin(theta)*omegaMatrix + omegaMatrix.transpose()*omegaMatrix*(1 - cos(theta));
 
-	// why need to get R matrix transpose??? TODO
 	Fx.block<3, 3>(0, 0) = R.transpose();
 	Fx.block<3, 3>(0, 3) = -T*Eigen::MatrixXd::Identity(3, 3);
 	Fx.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(3, 3);
@@ -268,6 +280,7 @@ void AHRSESKF::CalcObservationMatrix(Eigen::Matrix<double, 6, 6> &Hk,Eigen::Matr
 	Eigen::Matrix<double, 3, 4> Hk1;
 	Eigen::Matrix<double, 3, 4> Hk2;
 	Eigen::Matrix<double, 6, 7> Hx;
+
 	Hk1 <<  2*q.y(), -2*q.z(),  2*q.w(), -2*q.x(),
 		   -2*q.x(), -2*q.w(), -2*q.z(), -2*q.y(),
 			0, 4*q.x(),  4*q.y(),    0;
@@ -284,12 +297,15 @@ void AHRSESKF::CalcObservationMatrix(Eigen::Matrix<double, 6, 6> &Hk,Eigen::Matr
 	Eigen::Matrix<double, 4, 3> Qdettheta;
 	Eigen::Matrix<double, 7, 6> Xdetx = Eigen::MatrixXd::Zero(7, 6);
 
-	Qdettheta << -q.x(), -q.y(), -q.z(),
-				  q.w(), -q.z(),  q.y(),
-				  q.z(),  q.w(), -q.x(),
-				 -q.y(),  q.x(),  q.w();
-	
-	Qdettheta = 0.5 * Qdettheta;
+	//Qdettheta << -q.x(), -q.y(), -q.z(),
+	//			  q.w(), -q.z(),  q.y(),
+	//			  q.z(),  q.w(), -q.x(),
+	//			 -q.y(),  q.x(),  q.w();
+	//Qdettheta = 0.5 * Qdettheta;
+
+	Qdettheta.block<3, 3>(1, 0) = Eigen::MatrixXd::Identity(3, 3);
+	Qdettheta.row(0) = Eigen::MatrixXd::Zero(1, 3);
+	Qdettheta = 0.5 * Converter::quatleftproduct(q) * Qdettheta;
 
 	Xdetx.block<4, 3>(0, 0) = Qdettheta;
 	Xdetx.block<3, 3>(4, 3) = Eigen::MatrixXd::Identity(3, 3);

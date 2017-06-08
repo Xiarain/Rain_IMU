@@ -210,7 +210,7 @@ Eigen::Quaterniond Converter::quatplusquat(const Eigen::Quaterniond &q1, const E
 	return q;
 }
 
-Eigen::Matrix<double, 3, 3> Converter::CrossProductMatrix(const Eigen::Vector3d a)
+Eigen::Matrix<double, 3, 3> Converter::CrossProductMatrix(const Eigen::Vector3d &a)
 {
 	Eigen::Matrix<double, 3, 3> across;
 
@@ -219,6 +219,18 @@ Eigen::Matrix<double, 3, 3> Converter::CrossProductMatrix(const Eigen::Vector3d 
 			 -a[1], a[0], 0;
 	
 	return across;
+}
+
+Eigen::Matrix<double, 4, 3> Converter::CapKsaiMatrix(const Eigen::Quaterniond &q)
+{
+	Eigen::Matrix<double, 4, 3> Ksai;
+	Eigen::Vector3d qv(q.x(), q.y(), q.z());
+	
+	Ksai.row(0) = -qv.transpose();
+
+	Ksai.block<3, 3>(1, 0) = q.w() * Eigen::MatrixXd::Identity(3, 3) + CrossProductMatrix(qv);
+
+	return Ksai;
 }
 
 
