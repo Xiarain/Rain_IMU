@@ -128,31 +128,10 @@ Eigen::Matrix<double, 3, 3> Converter::quat2rotmatrix(const Eigen::Quaterniond &
 	return R;
 }
 
-Eigen::Matrix<double, 4, 4> Converter::OmegaMatrix(const SensorData &sensordata)
-{
-	double Gyro_x, Gyro_y, Gyro_z;
-	Gyro_x = sensordata.Gyro.X;
-	Gyro_y = sensordata.Gyro.Y;
-	Gyro_z = sensordata.Gyro.Z;
-
-	double norm = sqrt(Gyro_x * Gyro_x + Gyro_y * Gyro_y + Gyro_z * Gyro_z);
-	Gyro_x /= norm;
-	Gyro_y /= norm;
-	Gyro_z /= norm;
-
-	Eigen::Matrix<double, 4, 4> OmegaMatrix;
-	OmegaMatrix << 0, -Gyro_x, -Gyro_y, -Gyro_z,
-				   Gyro_x, 0, Gyro_z, -Gyro_y,
-				   Gyro_y, -Gyro_z, 0, Gyro_x,
-				   Gyro_z, Gyro_y, -Gyro_x, 0;
-	
-	return OmegaMatrix;
-}
-
 // the gyro data don't need to normalize
 Eigen::Matrix<double, 4, 4> Converter::BigOmegaMatrix(const Eigen::Vector3d omega)
 {
-	Eigen::Matrix<double, 4, 4> BigOmegaMatrix;
+	Eigen::Matrix<double, 4, 4> BigOmegaMatrix = Eigen::MatrixXd::Zero(4, 4);
 
 	BigOmegaMatrix.row(0) = -Eigen::Vector4d(0,omega[0],omega[1],omega[2]);
 	BigOmegaMatrix.col(0) = Eigen::Vector4d(0,omega[0],omega[1],omega[2]);

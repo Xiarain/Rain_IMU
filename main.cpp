@@ -9,7 +9,7 @@ int main(void)
 {
 	System imusystem;
 	
-	cout << "main running " << endl;
+	cout << "AHRSEKF1 running " << endl;
 
-	imusystem.RunESKF();
+	imusystem.RunEKF();
 }

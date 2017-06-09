@@ -21,74 +21,6 @@ AHRSEKF::~AHRSEKF()
  *  yaw		pitch	 roll
  *
 **/
-Eigen::Vector3d AHRSEKF::Initialize(const SensorData &sensordata)
-{
-	double pitch, roll, yaw;
-
-	pitch = atan2(sensordata.Acc.X, sqrt(sensordata.Acc.Y*sensordata.Acc.Y + sensordata.Acc.Z*sensordata.Acc.Z));
-	roll = atan2(-sensordata.Acc.Y, -sensordata.Acc.Z);
-	
-	double r1 = -sensordata.Mag.Y*cos(roll) + sensordata.Mag.Z*sin(roll);
-	double r2 = sensordata.Mag.X*cos(pitch) + sensordata.Mag.Y*sin(pitch)*sin(roll) + sensordata.Mag.Z*sin(pitch)*cos(roll);
-
-	yaw = atan2(r1, r2) - 8.3 * DEG_RAD;
-
-	return Eigen::Vector3d(yaw, pitch, roll);
-}
-
-Eigen::Matrix<double, 4, 4> AHRSEKF::DiscreteTime(const Eigen::Matrix<double, 4, 4> &rotM, const double &T)
-{
-	Eigen::Matrix<double, 4, 4> r1 = 0.5 * T * rotM; // 
-
-	return (Eigen::MatrixXd::Identity(4, 4) + r1);
-
-}
-
-Eigen::Matrix<double, 4, 4> AHRSEKF::Gyro2RotationalMatrix(const SensorData &sensordata)
-{
-	Eigen::Matrix<double, 4, 4> rotM;
-
-	rotM << 0, -sensordata.Acc.X, -sensordata.Acc.Y, -sensordata.Acc.Z,
-			sensordata.Acc.X, 0, sensordata.Acc.Z, -sensordata.Acc.Y,
-			sensordata.Acc.Y, -sensordata.Acc.Z, 0, sensordata.Acc.X,
-			sensordata.Acc.Z, sensordata.Acc.Y, -sensordata.Acc.X, 0;
-	
-	return rotM;
-}
-
-Eigen::Matrix<double, 3, 4> AHRSEKF::JacobianHk1Matrix(const Eigen::Quaterniond &q)
-{
-	Eigen::Matrix<double, 3, 4> Hk1;
-
-	Hk1 << -2*q.y(), 2*q.z(), -2*q.w(),2*q.x(),
-			2*q.x(), 2*q.w(), 2*q.z(), 2*q.y(),
-			2*q.w(), -2*q.x(), -2*q.y(), 2*q.z();
-
-	return Hk1;
-}
-
-void AHRSEKF::initalizevarMatrix(Eigen::Matrix<double, 4, 4> &PPrior0)
-{
-	//PPrior0 << 0.1250, 0.0003, 0.0003, 0.0003,
-	//		   0.0003, 0.1250, 0.0003, 0.0003,
-	//		   0.0003, 0.0003, 0.1250, 0.0003,
-	//		   0.0003, 0.0003, 0.0003, 0.1250;
-	PPrior0 << 1, 0, 0, 0,
-			   0, 1, 0, 0,
-			   0, 0, 1, 0,
-			   0, 0, 0, 1;
-}
-
-Eigen::Matrix<double, 3, 1> AHRSEKF::Calculateh1Matrix(const Eigen::Quaterniond &q)
-{
-	Eigen::Matrix<double, 3, 1> h1;
-	h1 << 2*q.x()*q.z() - 2*q.w()*q.y(),
-		  2*q.w()*q.x() + 2*q.y()*q.z(),
-		  q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z();
-
-	return h1;
-}
-
 /**
  * 在数据集中27 28 29 分别是角速度计的x、y、z轴数据
  *			  9 10 11 分别是加速度计的x、y、z轴数据
@@ -102,7 +34,7 @@ void AHRSEKF::ReadSensorData()
 
 	const unsigned int ROW = 36, VOL = 1000;
 	double d[VOL][ROW];
-	std::ifstream in("myfile.txt");
+	std::ifstream in("RawData.txt");
 	for (int i = 0; i < VOL; i++)
 	{
 		for (int j = 0; j < ROW; j++)
@@ -145,9 +77,121 @@ void AHRSEKF::ReadSensorData()
 	std::cout << "finish loading the dataset" << std::endl;
 }
 
-SensorData AHRSEKF::GetSensordatabyID(const long unsigned int &nId)
+SensorData AHRSEKF::GetSensordatabyID(const long unsigned int &nId, bool flagnorm)
 {
-	return vSensorData.at(nId);
+	SensorData sensordata = vSensorData.at(nId);
+
+	if (flagnorm == true)
+	{
+		double norm = std::sqrt(sensordata.Acc.X*sensordata.Acc.X + sensordata.Acc.Y*sensordata.Acc.Y + sensordata.Acc.Z*sensordata.Acc.Z);
+		sensordata.Acc.X /= norm;
+		sensordata.Acc.Y /= norm;
+		sensordata.Acc.Z /= norm;
+
+		norm = std::sqrt(sensordata.Gyro.X*sensordata.Gyro.X + sensordata.Gyro.Y*sensordata.Gyro.Y + sensordata.Gyro.Z*sensordata.Gyro.Z);
+		sensordata.Gyro.X /= norm;
+		sensordata.Gyro.Y /= norm;
+		sensordata.Gyro.Z /= norm;
+
+		norm = std::sqrt(sensordata.Mag.X*sensordata.Mag.X + sensordata.Mag.Y*sensordata.Mag.Y + sensordata.Mag.Z*sensordata.Mag.Z);
+		sensordata.Mag.X /= norm;
+		sensordata.Mag.Y /= norm;
+		sensordata.Mag.Z /= norm;
+	}
+	else;
+
+	return sensordata;
+}
+
+Eigen::Vector3d AHRSEKF::Initialize(const SensorData &sensordata)
+{
+	double pitch, roll, yaw;
+
+	pitch = atan2(sensordata.Acc.X, sqrt(sensordata.Acc.Y*sensordata.Acc.Y + sensordata.Acc.Z*sensordata.Acc.Z));
+	roll = atan2(-sensordata.Acc.Y, -sensordata.Acc.Z);
+	
+	double r1 = -sensordata.Mag.Y*cos(roll) + sensordata.Mag.Z*sin(roll);
+	double r2 = sensordata.Mag.X*cos(pitch) + sensordata.Mag.Y*sin(pitch)*sin(roll) + sensordata.Mag.Z*sin(pitch)*cos(roll);
+
+	yaw = atan2(r1, r2) - 8.3 * DEG_RAD;
+
+	return Eigen::Vector3d(yaw, pitch, roll);
+}
+
+Eigen::Matrix<double, 4, 4> AHRSEKF::DiscreteTime(const Eigen::Matrix<double, 4, 4> &rotM, const double &T)
+{
+	Eigen::Matrix<double, 4, 4> r1 = 0.5 * T * rotM; // 
+
+	return (Eigen::MatrixXd::Identity(4, 4) + r1);
+
+}
+
+Eigen::Matrix<double, 4, 4> AHRSEKF::Gyro2RotationalMatrix(const SensorData &sensordata)
+{
+	Eigen::Matrix<double, 4, 4> rotM;
+
+	rotM << 0, -sensordata.Acc.X, -sensordata.Acc.Y, -sensordata.Acc.Z,
+			sensordata.Acc.X, 0, sensordata.Acc.Z, -sensordata.Acc.Y,
+			sensordata.Acc.Y, -sensordata.Acc.Z, 0, sensordata.Acc.X,
+			sensordata.Acc.Z, sensordata.Acc.Y, -sensordata.Acc.X, 0;
+	
+	return rotM;
+}
+
+Eigen::Matrix<double, 3, 4> AHRSEKF::JacobianHk1Matrix(const Eigen::Quaterniond &q)
+{
+	Eigen::Matrix<double, 3, 4> Hk1;
+
+	Hk1 << -2*q.y(),  2*q.z(), -2*q.w(), 2*q.x(),
+			2*q.x(),  2*q.w(),  2*q.z(), 2*q.y(),
+			2*q.w(), -2*q.x(), -2*q.y(), 2*q.z();
+
+	return Hk1;
+}
+
+void AHRSEKF::initalizevarMatrix(Eigen::Matrix<double, 4, 4> &PPrior0)
+{
+	PPrior0 << 0.1250, 0.0003, 0.0003, 0.0003,
+			   0.0003, 0.1250, 0.0003, 0.0003,
+			   0.0003, 0.0003, 0.1250, 0.0003,
+			   0.0003, 0.0003, 0.0003, 0.1250;
+	//PPrior0 << 1, 0, 0, 0,
+	//		   0, 1, 0, 0,
+	//		   0, 0, 1, 0,
+	//		   0, 0, 0, 1;
+}
+
+Eigen::Matrix<double, 3, 1> AHRSEKF::Calculateh1Matrix(const Eigen::Quaterniond &q)
+{
+	Eigen::Matrix<double, 3, 1> h1;
+	h1 << 2*q.x()*q.z() - 2*q.w()*q.y(),
+		  2*q.w()*q.x() + 2*q.y()*q.z(),
+		  q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z();
+
+	return h1;
+}
+
+Eigen::Matrix<double, 3, 4> AHRSEKF::CalculateHk2Matrix(const Eigen::Quaterniond &q)
+{
+	Eigen::Matrix<double, 3, 4> Hk2;
+
+	Hk2 << q.z(),  q.y(),  q.x(),  q.w(),
+		   q.w(), -q.x(), -q.y(), -q.z(),
+		  -q.x(), -q.w(),  q.z(),  q.y();
+	
+	Hk2 = 2*Hk2;
+
+	return Hk2;
+}
+Eigen::Matrix<double, 3, 1> AHRSEKF::Calculateh2Matrix(const Eigen::Quaterniond &q)
+{
+	Eigen::Matrix<double, 3, 1> h2;
+
+	h2 << 2*q.x()*q.y() + 2*q.w()*q.z(),
+		  q.w()*q.w() - q.x()*q.x() - q.y()*q.y() - q.z()*q.z(),
+		  2*q.y()*q.z() - 2*q.w()*q.x();
+
+	return h2;
 }
 
 
