@@ -31,6 +31,7 @@ public:
 	Eigen::Matrix<double, 3, 1> Calculateh1Matrix(const Eigen::Quaterniond &q);
 	Eigen::Matrix<double, 3, 4> CalculateHk2Matrix(const Eigen::Quaterniond &q);
 	Eigen::Matrix<double, 3, 1> Calculateh2Matrix(const Eigen::Quaterniond &q);
+	void CalcObservationMatrix(const Eigen::Quaterniond &q, Eigen::Matrix<double, 3, 4> &Hk2, Eigen::Matrix<double, 3, 1> &hk2, const SensorData sensordata, const double T);
 
 private:
 	std::vector<SensorData> vSensorData;

@@ -35,6 +35,8 @@ int System::RunEKF()
 	Eigen::Quaterniond q = quatinit;
 	Eigen::Quaterniond q1;
 	Eigen::Matrix<double, 4, 4> P, P1;
+	Eigen::Matrix<double, 3, 4> Hk2;
+	Eigen::Matrix<double, 3, 1> hk2;
 
 	// initialize the P prior matrix, the initialization value is not very clear
 	ekf.initalizevarMatrix(P);
@@ -82,17 +84,16 @@ int System::RunEKF()
 		P = (Eigen::MatrixXd::Identity(4, 4) - Kk1 * Hk1) *  P;
 
 		// Start fo the correction stage 2:
-		//Eigen::Matrix<double, 3, 4> Hk2 = ekf.CalculateHk2Matrix(q);
+		//ekf.CalcObservationMatrix(q,Hk2,hk2,sensordatanorm,T);
 
 		//Eigen::Matrix<double, 3, 3> Vk2 = Eigen::MatrixXd::Identity(3, 3);
 		//Eigen::Matrix<double, 3, 3> R2 = 1 * Eigen::MatrixXd::Identity(3, 3);
-		//Eigen::Matrix<double, 4, 3> Kk2 = P*Hk2.transpose()*(Hk2*P*Hk2.transpose() + Vk2*R2*Vk2.transpose()).inverse();
+		//Eigen::Matrix<double, 4, 3> Kk2 = P*Hk2.transpose()*(Hk2*P*Hk2.transpose() + Vk2*R2*Vk2.transpose()).inverse(); //Vk2*R2*Vk2.transpose() 
 
 		//Eigen::Vector3d zk2(sensordatanorm.Mag.X, sensordatanorm.Mag.Y, sensordatanorm.Mag.Z);
 
-		//Eigen::Matrix<double, 3, 1> h2 = ekf.Calculateh2Matrix(q);
-
-		//Eigen::Vector4d vq2 = Kk2 * (zk2 + h2);
+		//Eigen::Vector4d vq2 = 0*Kk2 * (zk2 + hk2);
+		//Converter::quatNormalize(Converter::vector4d2quat(vq2));
 		//vq2[1] = 0;
 		//vq2[2] = 0;
 
@@ -108,7 +109,7 @@ int System::RunEKF()
 		euler[2] = euler[2] * ekf.RAD_DEG;
 		std::cout << euler[0] << " " << euler[1] << " " << euler[2] << std::endl;
 
-		if (index == 1000)
+		if (index == 10000)
 			return 0;
 	}
 

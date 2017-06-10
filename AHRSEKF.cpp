@@ -4,6 +4,7 @@
 #include <Eigen/core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include "Converter.h"
 
 namespace RAIN_IMU
 {
@@ -32,7 +33,7 @@ void AHRSEKF::ReadSensorData()
 {
 	std::cout << "read the sensor raw data" << std::endl;
 
-	const unsigned int ROW = 36, VOL = 1000;
+	const unsigned int ROW = 36, VOL = 10000;
 	double d[VOL][ROW];
 	std::ifstream in("RawData.txt");
 	for (int i = 0; i < VOL; i++)
@@ -192,6 +193,37 @@ Eigen::Matrix<double, 3, 1> AHRSEKF::Calculateh2Matrix(const Eigen::Quaterniond 
 		  2*q.y()*q.z() - 2*q.w()*q.x();
 
 	return h2;
+}
+void AHRSEKF::CalcObservationMatrix(const Eigen::Quaterniond &q, Eigen::Matrix<double, 3, 4> &Hk2, Eigen::Matrix<double, 3, 1> &hk2, const SensorData sensordatanorm, const double T)
+{
+
+	Eigen::Matrix<double, 1, 4> b;
+	Eigen::Quaterniond qh,qmag,qxinv;
+
+	qmag.w() = 0;
+	qmag.x() = sensordatanorm.Mag.X;
+	qmag.y() = sensordatanorm.Mag.Y;
+	qmag.z() = sensordatanorm.Mag.Z;
+	
+	qxinv.w() =  q.w();
+	qxinv.x() = -q.x();
+	qxinv.y() = -q.y();
+	qxinv.z() = -q.z();
+
+	qh = Converter::quatMultiquat(q,Converter::quatMultiquat(qmag, qxinv));
+
+	b[0] = 0;
+	b[1] = sqrt(qh.x()*qh.x() + qh.y()*qh.y());
+	b[2] = 0;
+	b[3] = qh.z();
+
+	hk2 <<    b[1]*(q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z()) + 2*b[3]*(q.x()*q.z() - q.w()*q.y()),
+			2*b[1]*(q.x()*q.y() - q.w()*q.z()) + 2*b[3]*(q.w()*q.x() + q.y()*q.z()),
+			2*b[1]*(q.w()*q.y() + q.x()*q.z()) + b[3]*(q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
+
+	Hk2 << -2*b[3]*q.y(),				  2*b[3]*q.z(),			       -4*b[1]*q.y() - 2*b[3]*q.w(), -4*b[1]*q.z() + 2*b[3]*q.x(),
+		   -2*b[1]*q.z() + 2*b[3]*q.x(),  2*b[1]*q.y() + 2*b[3]*q.w(),  2*b[1]*q.x() + 2*b[3]*q.z(), -2*b[1]*q.w() + 2*b[3]*q.y(),
+			2*b[1]*q.y(),				  2*b[1]*q.z() - 4*b[3]*q.x(),  2*b[1]*q.w() - 4*b[3]*q.y(),  2*b[1]*q.x();
 }
 
 
