@@ -27,6 +27,10 @@ public:
 	AHRSESKF();
 	~AHRSESKF();
 
+	// just for temporary storage
+	std::vector<SensorData> vSensorData;
+	static const unsigned long int DataLength = 42000;
+
 	State NominalStatesPrior;
 	State NominalStates;
 	ErrorState ErrorStates;
@@ -38,11 +42,11 @@ public:
 	double Yaw, Roll, Pitch;
 	
 	void ReadSensorData();
-	SensorData GetSensordatabyID(const long unsigned int &nId, bool flagnorm);
+	SensorData GetSensordatabyID(const long unsigned int nId, bool flagnorm);
 	Eigen::Vector3d Initialize(const SensorData &sensordata);
 	void InitializeVarMatrix(Eigen::Matrix<double, 6, 6> &Q, Eigen::Matrix<double, 6, 6> &R, Eigen::Matrix<double, 6, 6> &PPrior);
 
-	void PredictNominalState(const SensorData sensordata, const double T);
+	void PredictNominalState(const SensorData sensordata, const SensorData sensordata2, const double T);
 	void PredictErrorState(const SensorData sensordata, const double T);
 
 	Eigen::Matrix<double, 6, 6> CalcTransitionMatrix(const SensorData sensordata, const double T);
@@ -57,10 +61,7 @@ public:
 
 	Eigen::Quaterniond BuildUpdateQuat(ErrorState errorstate);
 private:
-	static const unsigned long int DataLength = 10000;
 
-	// just for temporary storage
-	std::vector<SensorData> vSensorData;
 	std::vector<Eigen::Matrix<double, 1, 3>> EulerAngle; // Yaw Pitch Roll 	
 
 };

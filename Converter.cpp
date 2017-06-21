@@ -128,25 +128,16 @@ Eigen::Matrix<double, 3, 3> Converter::quat2rotmatrix(const Eigen::Quaterniond &
 	return R;
 }
 
-Eigen::Matrix<double, 4, 4> Converter::OmegaMatrix(const SensorData &sensordata)
+// the gyro data don't need to normalize
+Eigen::Matrix<double, 4, 4> Converter::BigOmegaMatrix(const Eigen::Vector3d omega)
 {
-	double Gyro_x, Gyro_y, Gyro_z;
-	Gyro_x = sensordata.Gyro.X;
-	Gyro_y = sensordata.Gyro.Y;
-	Gyro_z = sensordata.Gyro.Z;
+	Eigen::Matrix<double, 4, 4> BigOmegaMatrix = Eigen::MatrixXd::Zero(4, 4);
 
-	double norm = sqrt(Gyro_x * Gyro_x + Gyro_y * Gyro_y + Gyro_z * Gyro_z);
-	Gyro_x /= norm;
-	Gyro_y /= norm;
-	Gyro_z /= norm;
+	BigOmegaMatrix.row(0) = -Eigen::Vector4d(0,omega[0],omega[1],omega[2]);
+	BigOmegaMatrix.col(0) = Eigen::Vector4d(0,omega[0],omega[1],omega[2]);
+	BigOmegaMatrix.block<3, 3>(1, 1) = -CrossProductMatrix(omega);
 
-	Eigen::Matrix<double, 4, 4> OmegaMatrix;
-	OmegaMatrix << 0, -Gyro_x, -Gyro_y, -Gyro_z,
-				   Gyro_x, 0, Gyro_z, -Gyro_y,
-				   Gyro_y, -Gyro_z, 0, Gyro_x,
-				   Gyro_z, Gyro_y, -Gyro_x, 0;
-	
-	return OmegaMatrix;
+	return BigOmegaMatrix;
 }
 
 Eigen::Vector4d Converter::quat2vector4d(const Eigen::Quaterniond &q)
@@ -198,17 +189,27 @@ Eigen::Quaterniond Converter::quatplusquat(const Eigen::Quaterniond &q1, const E
 	return q;
 }
 
-Eigen::Matrix<double, 3, 3> Converter::CrossProductMatrix(const Eigen::Vector3d a)
+Eigen::Matrix<double, 3, 3> Converter::CrossProductMatrix(const Eigen::Vector3d &a)
 {
 	Eigen::Matrix<double, 3, 3> across;
 
-	//  a[0] a[1] a[2]
-	//  ax   ay   az
 	across << 0, -a[2], a[1],
 			  a[2], 0, -a[0],
 			 -a[1], a[0], 0;
 	
 	return across;
+}
+
+Eigen::Matrix<double, 4, 3> Converter::CapKsaiMatrix(const Eigen::Quaterniond &q)
+{
+	Eigen::Matrix<double, 4, 3> Ksai;
+	Eigen::Vector3d qv(q.x(), q.y(), q.z());
+	
+	Ksai.row(0) = -qv.transpose();
+
+	Ksai.block<3, 3>(1, 0) = q.w() * Eigen::MatrixXd::Identity(3, 3) + CrossProductMatrix(qv);
+
+	return Ksai;
 }
 
 

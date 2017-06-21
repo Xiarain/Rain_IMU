@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include "System.h"
 #include "AHRSEKF.h"
@@ -27,66 +28,89 @@ int System::RunEKF()
 	
 	ekf.ReadSensorData();
 
-	Eigen::Vector3d eulerinit = ekf.Initialize(ekf.GetSensordatabyID(0));
-
-	//std::cout << eulerinit << std::endl;
+	Eigen::Vector3d eulerinit = ekf.Initialize(ekf.GetSensordatabyID(0,false));
 	
 	Eigen::Quaterniond quatinit = Converter::euler2quat(eulerinit);
 
-	Eigen::Quaterniond qProri;
-	Eigen::Quaterniond qPost = quatinit;
-	Eigen::Matrix<double, 4, 4> P;
+	Eigen::Quaterniond q = quatinit;
+	Eigen::Quaterniond q1;
+	Eigen::Matrix<double, 4, 4> P, P1;
+	Eigen::Matrix<double, 3, 4> Hk2;
+	Eigen::Matrix<double, 3, 1> hk2;
 
-	// initialize the P matrix, the initialization value is not very clear
+	// initialize the P prior matrix, the initialization value is not very clear
+
 	ekf.initalizevarMatrix(P);
  
+	SensorData sensordata;
+	SensorData sensordatanorm;
 	while(1)
 	{
+		sensordata = ekf.GetSensordatabyID(index,false);
+		sensordatanorm = ekf.GetSensordatabyID(index,true);
+
 		index++;
-		Eigen::Matrix<double, 4, 4> OmegaMatrix = Converter::OmegaMatrix(ekf.GetSensordatabyID(index));
+		
+		// start of "a prior" system estimation:
+		Eigen::Matrix<double, 4, 4> OmegaMatrix = Converter::BigOmegaMatrix(Eigen::Vector3d(sensordata.Gyro.X, sensordata.Gyro.Y, sensordata.Gyro.Z));
 
 		Eigen::Matrix<double, 4, 4> Ak = ekf.DiscreteTime(OmegaMatrix, T);
-
-		//std::cout << Ak << std::endl;
 	
-		qProri = Ak * Converter::quat2vector4d(qPost);
+		q = Converter::vector4d2quat(Ak * Converter::quat2vector4d(q));
+		Converter::quatNormalize(q);
 
 		Eigen::Matrix<double, 4, 4> Qk = (double)1e-6 *  Eigen::MatrixXd::Identity(4, 4);
 
 		P = Ak * P * Ak.transpose() + Qk;
 
-		Eigen::Matrix<double, 3, 4> Hk1 = ekf.JacobianHk1Matrix(qProri); // get from the quaternion
-
-		// std::cout << Hk1 << std::endl;
+		// Start of the correction stage 1:
+		Eigen::Matrix<double, 3, 4> Hk1 = -ekf.JacobianHk1Matrix(q); // get from the quaternion
 
 		Eigen::Matrix<double, 3, 3> Vk = Eigen::MatrixXd::Identity(3, 3);
-		Eigen::Matrix<double, 3, 3> R1 = 0.1 * Eigen::MatrixXd::Identity(3, 3);
+		Eigen::Matrix<double, 3, 3> R1 = 2 * Eigen::MatrixXd::Identity(3, 3);
 
-//		Eigen::Matrix<double, 4, 3> Kk1 = P * Hk1.transpose() * (Hk1 * P * Hk1.transpose() + Vk * R1 * Vk.transpose()).inverse();
-		Eigen::Matrix<double, 3, 3> temp = Hk1 * P * Hk1.transpose() + Vk * R1 * Vk.transpose();
-		Eigen::Matrix<double, 3, 3> temp2 = temp.inverse();
-		Eigen::Matrix<double, 4, 3> Kk1 = P * Hk1.transpose() * temp2;
+		Eigen::Matrix<double, 4, 3> Kk1 = P * Hk1.transpose() * (Hk1 * P * Hk1.transpose() + Vk * R1 * Vk.transpose()).inverse();
 
-		Eigen::Matrix<double, 3, 1> h1 = ekf.Calculateh1Matrix(qProri);
-		//std::cout << h1 << std::endl;
+		Eigen::Matrix<double, 3, 1> h1 = ekf.Calculateh1Matrix(q);
+		Eigen::Vector3d zk1(sensordatanorm.Acc.X, sensordatanorm.Acc.Y, sensordatanorm.Acc.Z);
 
-		Eigen::Vector4d vq1 = Kk1 * (Converter::Sensordate2zMatrix(ekf.GetSensordatabyID(index)) - h1);
+		Eigen::Vector4d vq1 = Kk1 * (zk1 + h1);
 
 		vq1[3] = 0;
-		
-		// posteriori quaternion
-		qPost = Converter::quatplusquat(qProri, Converter::vector4d2quat(vq1));
 
-		Converter::quatNormalize(qPost);
+		q1 = Converter::quatplusquat(q, Converter::vector4d2quat(vq1));
 
-		P = (Eigen::MatrixXd::Identity(4, 4) - Kk1 * Hk1) *  P;
+		Converter::quatNormalize(q);
 
-		Eigen::Vector3d euler = Converter::quat2euler(qPost);
+		P1 = (Eigen::MatrixXd::Identity(4, 4) - Kk1 * Hk1) *  P;
 
-		std::cout << "=====================================" << std::endl;
+		// Start fo the correction stage 2:
+		ekf.CalcObservationMatrix(q,Hk2,hk2,sensordatanorm,T);
+
+		Eigen::Matrix<double, 3, 3> Vk2 = Eigen::MatrixXd::Identity(3, 3);
+		Eigen::Matrix<double, 3, 3> R2 = 1 * Eigen::MatrixXd::Identity(3, 3);
+		Eigen::Matrix<double, 4, 3> Kk2 = P*Hk2.transpose()*(Hk2*P*Hk2.transpose() + Vk2*R2*Vk2.transpose()).inverse(); //Vk2*R2*Vk2.transpose() 
+
+		Eigen::Vector3d zk2(sensordatanorm.Mag.X, sensordatanorm.Mag.Y, sensordatanorm.Mag.Z);
+
+		Eigen::Vector4d vq2 = Kk2 * (zk2 - hk2);
+		Converter::quatNormalize(Converter::vector4d2quat(vq2));
+		vq2[1] = 0;
+		vq2[2] = 0;
+
+		q = Converter::quatplusquat(q1, Converter::vector4d2quat(vq2));
+		Converter::quatNormalize(q);
+
+		P = (Eigen::MatrixXd::Identity(4, 4) - Kk2 * Hk2) *  P1;
+ 
+		// yaw pitch roll
+		Eigen::Vector3d euler = Converter::quat2euler(q); 
+ 		euler[0] = euler[0] * ekf.RAD_DEG - 8.3;
+		euler[1] = euler[1] * ekf.RAD_DEG;
+		euler[2] = euler[2] * ekf.RAD_DEG;
 		std::cout << euler[0] << " " << euler[1] << " " << euler[2] << std::endl;
 
-		if (index == 30)
+		if (index == 100)
 			return 0;
 	}
 
@@ -191,7 +215,7 @@ int System::RunESKF()
 
 	const double T = 0.02;
 
-	unsigned int index = 0;
+	unsigned int index = 1;
 
 	eskf.ReadSensorData();
 	eskf.InitializeVarMatrix(Q, R, P); // covariance estimate 
@@ -200,19 +224,26 @@ int System::RunESKF()
 
 	eskf.NominalStates.q = quatinit;
 
+	eskf.vSensorData.at(0).CalculateEuler.Yaw = eulerinit[0] * eskf.RAD_DEG;
+	eskf.vSensorData.at(0).CalculateEuler.Pitch = eulerinit[1] * eskf.RAD_DEG;
+	eskf.vSensorData.at(0).CalculateEuler.Roll = eulerinit[2] * eskf.RAD_DEG;
+
 	SensorData sensordata;
+	SensorData sensordata2;
 	SensorData sensordatanorm;
 	while(1)
 	{
 		// sensor data 
 		sensordata = eskf.GetSensordatabyID(index,false);
+		sensordata2 = eskf.GetSensordatabyID((index+1),false);
 		sensordatanorm = eskf.GetSensordatabyID(index,true);
 
 		// prior nominal state 
-		eskf.PredictNominalState(sensordata, T); // OK
+		eskf.PredictNominalState(sensordata, sensordata2, T); // OK
 
 		Fx = eskf.CalcTransitionMatrix(sensordata, T); // OK
 
+		// there is no difference whether running this function
 		eskf.PredictErrorState(Fx);
 
 		// predict prior covariance estimate 
@@ -232,12 +263,13 @@ int System::RunESKF()
 		eskf.ErrorStates.det_theta = vdetx.block<1, 3>(0, 0);
 		eskf.ErrorStates.det_wb = vdetx.block<1, 3>(0, 3);
 
-		P = P - K*(Hk*P* Hk.transpose() + R)*K.transpose();
+		P = P - K*(Hk*P*Hk.transpose() + R)*K.transpose();
 
 		// integrate error state to the nominal state
 		detq = eskf.BuildUpdateQuat(eskf.ErrorStates);
 
-		eskf.NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(eskf.NominalStates.q)*Converter::quat2vector4d(detq));
+		eskf.NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(eskf.NominalStates.q) * Converter::quat2vector4d(detq));
+
 		Converter::quatNormalize(eskf.NominalStates.q);
 
 		eskf.NominalStates.wb = eskf.NominalStates.wb + eskf.ErrorStates.det_wb;
@@ -252,18 +284,67 @@ int System::RunESKF()
 		euler[0] = euler[0] * eskf.RAD_DEG  - 8.3;
 		euler[1] = euler[1] * eskf.RAD_DEG;
 		euler[2] = euler[2] * eskf.RAD_DEG;
-		std::cout << "euler:" << euler.transpose() << std::endl;
+		//std::cout << "euler:" << euler.transpose() << std::endl;
 		sensordatanorm.EulerGroundTruth.Yaw *= eskf.RAD_DEG;
 		sensordatanorm.EulerGroundTruth.Pitch *= eskf.RAD_DEG;
 		sensordatanorm.EulerGroundTruth.Roll *= eskf.RAD_DEG;
-		std::cout << "truth"  << sensordatanorm.EulerGroundTruth.Yaw << " " << sensordatanorm.EulerGroundTruth.Pitch << " "  << sensordatanorm.EulerGroundTruth.Roll << std::endl; 
-
+		//std::cout << "truth"  << sensordatanorm.EulerGroundTruth.Yaw << " " << sensordatanorm.EulerGroundTruth.Pitch << " "  << sensordatanorm.EulerGroundTruth.Roll << std::endl; 
+		eskf.vSensorData.at(index).CalculateEuler.Yaw = euler[0];
+		eskf.vSensorData.at(index).CalculateEuler.Pitch = euler[1];
+		eskf.vSensorData.at(index).CalculateEuler.Roll = euler[2];
+		eskf.vSensorData.at(index).EulerGroundTruth.Yaw = sensordatanorm.EulerGroundTruth.Yaw;
+		eskf.vSensorData.at(index).EulerGroundTruth.Pitch = sensordatanorm.EulerGroundTruth.Pitch;
+		eskf.vSensorData.at(index).EulerGroundTruth.Roll = sensordatanorm.EulerGroundTruth.Roll;
 
 		index++;
 	
-		if(index == 10000)
+		if(index == (4200 - 1))
+		{
+			std::cout << "finish the calculation" << std::endl;
+			SaveData(eskf.vSensorData);
+			std::cout << "sava data successfully" << std::endl;
+
 			return 0;
+		}
+			
 	}
+
+	return 0;
+}
+
+int System::SaveData(std::vector<SensorData> vSensorData)
+{
+	std::ofstream outfile;
+	long unsigned int index = 0;;
+	outfile.open("log.txt");
+	if (!outfile)
+	{
+		std::cout << "sava data fail" << std::endl;
+		return 0;
+	}
+
+	while(index < (4200-2))
+	{
+		outfile << index;
+		outfile << " ";
+		outfile << vSensorData.at(index).CalculateEuler.Yaw;
+		outfile << " ";
+		outfile << vSensorData.at(index).CalculateEuler.Pitch;
+		outfile << " ";
+		outfile << vSensorData.at(index).CalculateEuler.Roll;
+		outfile << " ";
+		outfile << vSensorData.at(index).EulerGroundTruth.Yaw;
+		outfile << " ";
+		outfile << vSensorData.at(index).EulerGroundTruth.Pitch;
+		outfile << " ";
+		outfile << vSensorData.at(index).EulerGroundTruth.Roll;
+		outfile << std::endl;
+
+		index++;
+
+	}
+
+	outfile.close();
 
 	return 0;
 }
