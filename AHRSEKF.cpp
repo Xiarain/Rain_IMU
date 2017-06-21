@@ -204,7 +204,7 @@ void AHRSEKF::CalcObservationMatrix(const Eigen::Quaterniond &q, Eigen::Matrix<d
 	qmag.x() = sensordatanorm.Mag.X;
 	qmag.y() = sensordatanorm.Mag.Y;
 	qmag.z() = sensordatanorm.Mag.Z;
-	
+
 	qxinv.w() =  q.w();
 	qxinv.x() = -q.x();
 	qxinv.y() = -q.y();

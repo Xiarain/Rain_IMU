@@ -63,7 +63,7 @@ int System::RunEKF()
 		P = Ak * P * Ak.transpose() + Qk;
 
 		// Start of the correction stage 1:
-		Eigen::Matrix<double, 3, 4> Hk1 = ekf.JacobianHk1Matrix(q); // get from the quaternion
+		Eigen::Matrix<double, 3, 4> Hk1 = -ekf.JacobianHk1Matrix(q); // get from the quaternion
 
 		Eigen::Matrix<double, 3, 3> Vk = Eigen::MatrixXd::Identity(3, 3);
 		Eigen::Matrix<double, 3, 3> R1 = 2 * Eigen::MatrixXd::Identity(3, 3);
@@ -77,39 +77,39 @@ int System::RunEKF()
 
 		vq1[3] = 0;
 
-		q = Converter::quatplusquat(q, Converter::vector4d2quat(vq1));
+		q1 = Converter::quatplusquat(q, Converter::vector4d2quat(vq1));
 
 		Converter::quatNormalize(q);
 
-		P = (Eigen::MatrixXd::Identity(4, 4) - Kk1 * Hk1) *  P;
+		P1 = (Eigen::MatrixXd::Identity(4, 4) - Kk1 * Hk1) *  P;
 
 		// Start fo the correction stage 2:
-		//ekf.CalcObservationMatrix(q,Hk2,hk2,sensordatanorm,T);
+		ekf.CalcObservationMatrix(q,Hk2,hk2,sensordatanorm,T);
 
-		//Eigen::Matrix<double, 3, 3> Vk2 = Eigen::MatrixXd::Identity(3, 3);
-		//Eigen::Matrix<double, 3, 3> R2 = 1 * Eigen::MatrixXd::Identity(3, 3);
-		//Eigen::Matrix<double, 4, 3> Kk2 = P*Hk2.transpose()*(Hk2*P*Hk2.transpose() + Vk2*R2*Vk2.transpose()).inverse(); //Vk2*R2*Vk2.transpose() 
+		Eigen::Matrix<double, 3, 3> Vk2 = Eigen::MatrixXd::Identity(3, 3);
+		Eigen::Matrix<double, 3, 3> R2 = 1 * Eigen::MatrixXd::Identity(3, 3);
+		Eigen::Matrix<double, 4, 3> Kk2 = P*Hk2.transpose()*(Hk2*P*Hk2.transpose() + Vk2*R2*Vk2.transpose()).inverse(); //Vk2*R2*Vk2.transpose() 
 
-		//Eigen::Vector3d zk2(sensordatanorm.Mag.X, sensordatanorm.Mag.Y, sensordatanorm.Mag.Z);
+		Eigen::Vector3d zk2(sensordatanorm.Mag.X, sensordatanorm.Mag.Y, sensordatanorm.Mag.Z);
 
-		//Eigen::Vector4d vq2 = 0*Kk2 * (zk2 + hk2);
-		//Converter::quatNormalize(Converter::vector4d2quat(vq2));
-		//vq2[1] = 0;
-		//vq2[2] = 0;
+		Eigen::Vector4d vq2 = Kk2 * (zk2 - hk2);
+		Converter::quatNormalize(Converter::vector4d2quat(vq2));
+		vq2[1] = 0;
+		vq2[2] = 0;
 
-		//q = Converter::quatplusquat(q1, Converter::vector4d2quat(vq2));
-		//Converter::quatNormalize(q);
+		q = Converter::quatplusquat(q1, Converter::vector4d2quat(vq2));
+		Converter::quatNormalize(q);
 
-		//P = (Eigen::MatrixXd::Identity(4, 4) - Kk2 * Hk2) *  P1;
+		P = (Eigen::MatrixXd::Identity(4, 4) - Kk2 * Hk2) *  P1;
  
 		// yaw pitch roll
 		Eigen::Vector3d euler = Converter::quat2euler(q); 
- 		euler[0] = euler[0] * ekf.RAD_DEG;
+ 		euler[0] = euler[0] * ekf.RAD_DEG - 8.3;
 		euler[1] = euler[1] * ekf.RAD_DEG;
 		euler[2] = euler[2] * ekf.RAD_DEG;
 		std::cout << euler[0] << " " << euler[1] << " " << euler[2] << std::endl;
 
-		if (index == 10000)
+		if (index == 100)
 			return 0;
 	}
 
