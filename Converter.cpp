@@ -7,7 +7,7 @@ namespace RAIN_IMU
 *  Q = q_w+q_x*i+q_y*j+q_z*k	i * j = k
 *  vector: q = [q_w q_v] = [q_w q_x q_y q_z]
 *	x_g = q * x_l * q_*
-*	euler£∫z y x÷· 
+*	euler£∫z y x axis 
 *		   yaw pitch roll 
 *
 **/
@@ -88,7 +88,7 @@ Eigen::Quaterniond Converter::quatMultiquat(const Eigen::Quaterniond &q1,const E
 	return q;
 }
 
-Eigen::Matrix<double, 4, 4> Converter::quatleftproduct(const Eigen::Quaterniond &q0)
+Eigen::Matrix<double, 4, 4> Converter::quatLeftproduct(const Eigen::Quaterniond &q0)
 {
 	Eigen::Matrix<double, 4, 4> qL;
 

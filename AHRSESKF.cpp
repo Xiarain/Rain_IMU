@@ -138,14 +138,14 @@ void AHRSESKF::PredictNominalState(const SensorData sensordata, const SensorData
 	// there are three methods that can calculate the nominal state, but no differece in those three methods.
 
 	//====================================== quaternion left product
-	//Eigen::Quaterniond qw;
+	Eigen::Quaterniond qw;
 
-	//qw.w() = 1; // this value need to deep consider? TODO
-	//qw.x() = 0.5*T*((sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0]);
-	//qw.y() = 0.5*T*((sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1]);
-	//qw.z() = 0.5*T*((sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2]);
+	qw.w() = 1; // this value need to deep consider? TODO
+	qw.x() = 0.5*T*((sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0]);
+	qw.y() = 0.5*T*((sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1]);
+	qw.z() = 0.5*T*((sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2]);
 	
-	//NominalStates.q = Converter::vector4d2quat(Converter::quatleftproduct(NominalStates.q) * Converter::quat2vector4d(qw));
+	NominalStates.q = Converter::vector4d2quat(Converter::quatLeftproduct(NominalStates.q) * Converter::quat2vector4d(qw));
 
 	//====================================== capital omega matrix method
 	/*Eigen::Vector3d vqw;
@@ -174,21 +174,21 @@ void AHRSESKF::PredictNominalState(const SensorData sensordata, const SensorData
 	//NominalStates.q = Converter::vector4d2quat(0.5*CapKsaiMatrix*vqw + Converter::quat2vector4d(NominalStates.q));
 
 	//===================================== close solution method
-	Eigen::Vector3d omega;
-	omega[0] = (sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0];
-	omega[1] = (sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1];
-	omega[2] = (sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2];
+	//Eigen::Vector3d omega;
+	//omega[0] = (sensordata.Gyro.X + sensordata2.Gyro.X)/2 - NominalStates.wb[0];
+	//omega[1] = (sensordata.Gyro.Y + sensordata2.Gyro.Y)/2 - NominalStates.wb[1];
+	//omega[2] = (sensordata.Gyro.Z + sensordata2.Gyro.Z)/2 - NominalStates.wb[2];
 
-	double absomega = 0;
-	Eigen::Matrix<double, 4, 4> Captheta;
-	Eigen::Matrix<double, 4, 4> Capomega;
+	//double absomega = 0;
+	//Eigen::Matrix<double, 4, 4> Captheta;
+	//Eigen::Matrix<double, 4, 4> Capomega;
 
-	absomega = sqrt(omega.transpose()*omega);
-	Capomega = Converter::BigOmegaMatrix(omega);
+	//absomega = sqrt(omega.transpose()*omega);
+	//Capomega = Converter::BigOmegaMatrix(omega);
 
-	Captheta = cos(0.5*T*absomega) * Eigen::MatrixXd::Identity(4, 4) + (1/absomega)*sin(0.5*T*absomega)*Capomega;
+	//Captheta = cos(0.5*T*absomega) * Eigen::MatrixXd::Identity(4, 4) + (1/absomega)*sin(0.5*T*absomega)*Capomega;
 
-	NominalStates.q = Converter::vector4d2quat(Captheta * Converter::quat2vector4d(NominalStates.q));
+	//NominalStates.q = Converter::vector4d2quat(Captheta * Converter::quat2vector4d(NominalStates.q));
 
 
 	Converter::quatNormalize(NominalStates.q);
@@ -305,7 +305,7 @@ void AHRSESKF::CalcObservationMatrix(Eigen::Matrix<double, 6, 6> &Hk,Eigen::Matr
 
 	Qdettheta.block<3, 3>(1, 0) = Eigen::MatrixXd::Identity(3, 3);
 	Qdettheta.row(0) = Eigen::MatrixXd::Zero(1, 3);
-	Qdettheta = 0.5 * Converter::quatleftproduct(q) * Qdettheta;
+	Qdettheta = 0.5 * Converter::quatLeftproduct(q) * Qdettheta;
 
 	Xdetx.block<4, 3>(0, 0) = Qdettheta;
 	Xdetx.block<3, 3>(4, 3) = Eigen::MatrixXd::Identity(3, 3);
@@ -324,7 +324,7 @@ void AHRSESKF::CalcObservationMatrix(Eigen::Matrix<double, 6, 6> &Hk,Eigen::Matr
 			2*b[1]*(q.w()*q.y() + q.x()*q.z()) + b[3]*(q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
 	
 	hk.block<1, 3>(0, 0) = -hk1;
-	hk.block<1, 3>(0, 3) = -hk2;
+	hk.block<1, 3>(0, 3) = hk2;
 }
 
 void AHRSESKF::ObserveValue(Eigen::Matrix<double, 1, 6> &z, const SensorData sensordatanorm)

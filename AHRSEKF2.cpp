@@ -28,7 +28,7 @@ void AHRSEKF2::ReadSensorData()
 
 	const unsigned long int ROW = 36, VOL = 4000;
 	double d[VOL][ROW];
-	std::ifstream in("myfile.txt");
+	std::ifstream in("RawData.txt");
 	for (unsigned long int i = 0; i < VOL; i++)
 	{
 		for (int j = 0; j < ROW; j++)
@@ -128,10 +128,6 @@ void AHRSEKF2::InitializeVarMatrix(Eigen::Matrix<double, 6, 6> &R, Eigen::Matrix
 
 	R.block<3, 3>(0, 0) *= an_var;
 	R.block<3, 3>(3, 3) *= mn_var;
-
-	//std::cout << Q << std::endl;
-	//std::cout << R << std::endl;
-
 }
 
 // x q.w q.x q.y q.z bx by bz
@@ -214,12 +210,6 @@ void  AHRSEKF2::FillObserveMatrix(const Eigen::Matrix<double, 1, 7> &x_, Eigen::
 	qxinv.y() = -qx.y();
 	qxinv.z() = -qx.z();
 
-	// it need to delete
-	qxinv.w() =  qx.w();
-	qxinv.x() = -qx.x();
-	qxinv.y() = -qx.y();
-	qxinv.z() = -qx.z();
-
 	qh = Converter::quatMultiquat(qx,Converter::quatMultiquat(qmag, qxinv));
 
 	b[0] = 0;
@@ -227,7 +217,7 @@ void  AHRSEKF2::FillObserveMatrix(const Eigen::Matrix<double, 1, 7> &x_, Eigen::
 	b[2] = 0;
 	b[3] = qh.z();
 
-	hk2 <<  b[1]*(x_[0]*x_[0] + x_[1]*x_[1] - x_[2]*x_[2] - x_[3]*x_[3]) + 2*b[3]*(x_[1]*x_[3] - x_[0]*x_[2]),
+	hk2 <<    b[1]*(x_[0]*x_[0] + x_[1]*x_[1] - x_[2]*x_[2] - x_[3]*x_[3]) + 2*b[3]*(x_[1]*x_[3] - x_[0]*x_[2]),
 			2*b[1]*(x_[1]*x_[2] - x_[0]*x_[3]) + 2*b[3]*(x_[0]*x_[1] + x_[2]*x_[3]),
 			2*b[1]*(x_[0]*x_[2] + x_[1]*x_[3]) + b[3]*(x_[0]*x_[0] - x_[1]*x_[1] - x_[2]*x_[2] + x_[3]*x_[3]);
 
@@ -248,7 +238,7 @@ void  AHRSEKF2::FillObserveMatrix(const Eigen::Matrix<double, 1, 7> &x_, Eigen::
 	Hk1 = 2 * Hk1;
 
 	Hk2.block<3, 4>(0, 0) << -2*b[3]*x_[2],				   2*b[3]*x_[3],			     -4*b[1]*x_[2] - 2*b[3]*x_[0], -4*b[1]*x_[3] + 2*b[3]*x_[1],
-							 -2*b[1]*x_[3] + 2*b[3]*x_[1], 2*b[1]*x_[2] + 2*b[3]*x_[0],  2*b[1]*x_[1] + 2*b[3]*x_[3], -2*b[1]*x_[0] + 2*b[3]*x_[2],
+							 -2*b[1]*x_[3] + 2*b[3]*x_[1], 2*b[1]*x_[2] + 2*b[3]*x_[0],   2*b[1]*x_[1] + 2*b[3]*x_[3], -2*b[1]*x_[0] + 2*b[3]*x_[2],
 							  2*b[1]*x_[2],				   2*b[1]*x_[3] - 4*b[3]*x_[1],   2*b[1]*x_[0] - 4*b[3]*x_[2],  2*b[1]*x_[1];
 	
 
@@ -260,13 +250,6 @@ void  AHRSEKF2::FillObserveMatrix(const Eigen::Matrix<double, 1, 7> &x_, Eigen::
 	Hk.block<3, 7>(0, 0) = Hk1;
 	Hk.block<3, 7>(3, 0) = Hk2;
 }
-
-// Hk
-//void AHRSEKF2::FillStateGain(Eigen::Matrix<double, 7, 7>)
-//{
-//
-//}
-
 
 
 }

@@ -21,7 +21,7 @@ public:
 	static void quatNormalize(Eigen::Quaterniond &q);
 	static void Normalize(Eigen::Matrix<double, 1, 7> &data);
 	static Eigen::Quaterniond quatMultiquat(const Eigen::Quaterniond &q1, const Eigen::Quaterniond &q2);
-	static Eigen::Matrix<double, 4, 4> quatleftproduct(const Eigen::Quaterniond &q0);
+	static Eigen::Matrix<double, 4, 4> quatLeftproduct(const Eigen::Quaterniond &q0);
 	static Eigen::Matrix<double, 4, 4> quatRightproduct(const Eigen::Quaterniond &q0);
 	static Eigen::Matrix<double, 3, 3> quat2rotmatrix(const Eigen::Quaterniond &q0);
 	static Eigen::Matrix<double, 4, 4> Converter::OmegaMatrix(const SensorData &sensordata);

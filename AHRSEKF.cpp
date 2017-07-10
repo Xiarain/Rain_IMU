@@ -23,17 +23,16 @@ AHRSEKF::~AHRSEKF()
  *
 **/
 /**
- * 在数据集中27 28 29 分别是角速度计的x、y、z轴数据
- *			  9 10 11 分别是加速度计的x、y、z轴数据
- *			 15 16 17 分别是磁罗盘的x、y、z轴数据
- *			 30 31 32 分别是解算姿态的ground truth的Roll、Pitch、Yaw
-
+ *  in the dataset, the number 27, 28, 29 namely is the x, y, z axis of the gyroscope  
+ *			        the number 09, 10, 11 namely is the x, y, z axis of the accelerometer 
+ *					the number 15, 16, 17 namely is the x, y, z axis of the magnetometer
+ *					the number 30, 31, 32 namely is Roll, Pithc, Yaw of the groundtruth
 **/
 void AHRSEKF::ReadSensorData()
 {
 	std::cout << "read the sensor raw data" << std::endl;
 
-	const unsigned int ROW = 36, VOL = 10000;
+	const unsigned int ROW = 36, VOL = 40000;
 	double d[VOL][ROW];
 	std::ifstream in("RawData.txt");
 	for (int i = 0; i < VOL; i++)
@@ -156,18 +155,14 @@ void AHRSEKF::initalizevarMatrix(Eigen::Matrix<double, 4, 4> &PPrior0)
 			   0.0003, 0.1250, 0.0003, 0.0003,
 			   0.0003, 0.0003, 0.1250, 0.0003,
 			   0.0003, 0.0003, 0.0003, 0.1250;
-	//PPrior0 << 1, 0, 0, 0,
-	//		   0, 1, 0, 0,
-	//		   0, 0, 1, 0,
-	//		   0, 0, 0, 1;
 }
 
 Eigen::Matrix<double, 3, 1> AHRSEKF::Calculateh1Matrix(const Eigen::Quaterniond &q)
 {
 	Eigen::Matrix<double, 3, 1> h1;
-	h1 << 2*q.x()*q.z() - 2*q.w()*q.y(),
-		  2*q.w()*q.x() + 2*q.y()*q.z(),
-		  q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z();
+	h1 << -2*(q.x()*q.z() - q.w()*q.y()),
+		  -2*(q.w()*q.x() + q.y()*q.z()),
+		  -(q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
 
 	return h1;
 }
