@@ -6,8 +6,8 @@ namespace RAIN_IMU
 *	Hamilton (q_w,q_v) Right hand
 *  Q = q_w+q_x*i+q_y*j+q_z*k	i * j = k
 *  vector: q = [q_w q_v] = [q_w q_x q_y q_z]
-*	x_g = q * x_l * q_*
-*	euler£ºz y x axis 
+*  x_g = q * x_l * q_*
+*  euler£ºz y x axis 
 *		   yaw pitch roll 
 *
 **/
